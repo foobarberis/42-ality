@@ -1,0 +1,8 @@
+_build/
+_opam/
+ft_ality
+ft_ality.byte
+*.cmi
+*.cmo
+*.cmx
+*.o
