@@ -37,6 +37,7 @@ let () =
   run "load_grammar reject missing file" (fun () ->
     expect_parse_error (fun () -> load_grammar "test/fixtures/parse/missing.gmr"));
 
+  (*TODO remove read access to test/fixtures/parse/access_corrupt.gmr file*)
   run "load_grammar reject access file" (fun () -> 
     expect_parse_error (fun () -> load_grammar "test/fixtures/parse/access_corrupt.gmr"));
 
@@ -51,7 +52,7 @@ let () =
       "Failed to execute field function"
     );
 
-  run "field 'input' in file without 'input' field" (fun () -> 
+  run "field 'input' reject none 'input' field" (fun () -> 
   let in_channel = load_grammar "test/fixtures/parse/missing_input.gmr" in
   expect_parse_error
     (fun () -> field "input" in_channel));

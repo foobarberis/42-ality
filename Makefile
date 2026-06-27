@@ -7,7 +7,7 @@ BUILDDIR = _build
 UNIT = $(BUILDDIR)/test_unit.byte
 UNIT_OBJ = $(BUILDDIR)/test_parse.cmo
 
-MODULES = ft_ality automaton parse
+MODULES = ft_ality automaton_sig automaton parse
 SRC_ML = $(addprefix $(SRCDIR)/,$(addsuffix .ml,$(MODULES)))
 TEST_ML = test/test_parse.ml
 
