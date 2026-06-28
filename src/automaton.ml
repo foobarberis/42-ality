@@ -1,13 +1,29 @@
 module AutomataTypes = struct
   type state = string
-  type input = char
+  type input = string
   type t = {
     name : string;
     input_map : (input * string) list;
     initial : state;
     finals : (state * string) list;
-    transitions : (state * (input * state) list) list; 
+    transitions : (state * (input * state) list) list;
+    }
+  end
+  
+module ParsingTypes = struct 
+  type parsed_grammar = {
+  input_map : (AutomataTypes.input * string) list;
+  combos : (AutomataTypes.input list * string) list;
   }
+
+  let build_parsed_grammar =
+    {input_map = []; combos = []}
+  
+  let build_parsed_inputs _input_map gmr = 
+    {gmr with input_map = _input_map}
+
+  let build_parse_combos _combos gmr= 
+    {gmr with combos = _combos}
 end
 
 module Automata : Automaton_sig.automata = struct

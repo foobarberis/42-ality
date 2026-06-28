@@ -28,5 +28,6 @@ module type automataBuilder = sig
   val add_final : t -> state -> string -> t
 end 
 
-(* module type transitionsBuilder = sig 
-end *)
+  module type transitionsBuilder = sig 
+
+  end
