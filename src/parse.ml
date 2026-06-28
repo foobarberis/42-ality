@@ -65,8 +65,6 @@ let parse_automaton (in_channel: in_channel): Automaton.ParsingTypes.parsed_gram
   Automaton.ParsingTypes.build_parsed_grammar
   |> Automaton.ParsingTypes.build_parsed_inputs (parse_input (field "input" in_channel) ';')
   |> Automaton.ParsingTypes.build_parse_combos (parse_combos (field "combos" in_channel))
-  (* Automaton.ParsingTypes.parsed_grammar.input_map = parse_input (field "input" in_channel) ';' *)
-  (* Atomaton.ParsingTypes.parsed_grammar.combos = parse_combos (field "combos" in_channel) *)
 
 let load_automaton (path: string):  Automaton.ParsingTypes.parsed_grammar = 
   parse_automaton (load_grammar path)
