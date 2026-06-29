@@ -8,7 +8,7 @@ module AutomataTypes = struct
     finals : (state * string) list;
     transitions : (state * (input * state) list) list;
     }
-  end
+end
   
 module ParsingTypes = struct 
   type parsed_grammar = {
@@ -49,25 +49,25 @@ end
 
 module AutomataBuilder : Automaton_sig.automataBuilder = struct
   include AutomataTypes
-  let buildAutomata automata_name =
+  let buildAutomata automata=
     {name = automata_name; input_map = []; initial = "s0"; finals = []; transitions = []}
 
-  let buildInput  automata _input_map =
+  let buildInput _input_map automata =
     {automata with input_map = _input_map}
   
-  let buildInitial automata init_state =
+  let buildInitial init_state automata =
     {automata with initial = init_state}
   
-  let buildFinals automata _finals =
+  let buildFinals _finals automata =
     {automata with finals = _finals}
   
-  let buildTransitions automata  _transitions =
+  let buildTransitions _transitions automata =
     {automata with transitions = _transitions}
   
-  let add_input automata input move_name =
+  let add_input input move_name automata =
     {automata with input_map = (input, move_name) :: automata.input_map}
 
-  let add_transition automata from_state input to_state =
+  let add_transition from_state input to_state automata =
     match List.assoc_opt from_state automata.transitions with
       | Some transitions ->
         let new_transitions = (input, to_state) :: transitions in
@@ -75,6 +75,47 @@ module AutomataBuilder : Automaton_sig.automataBuilder = struct
       | None ->
         {automata with transitions = (from_state, [ (input, to_state) ]) :: automata.transitions}
 
-  let add_final automata state combo_name =
+  let add_final state combo_name automata =
     {automata with finals = (state, combo_name) :: automata.finals}
+end
+
+module TransitionBuilder : Automaton_sig.TransitionBuilder = struct 
+  include AutomataTypes (*type combo (input list * string) list*)
+
+  let counter = ref 0
+
+  let inc_state () =
+    let s = "s" ^ string_of_int !counter in
+    incr counter;
+    s
+
+  let trainingAutomata combos automata =
+    let rec process automata state inputs =
+      match inputs with
+      | [] -> (automata, state)
+      | inp :: rest ->
+        let next_state = inc_state () in 
+          let t = AutomataBuilder.add_transition automata state inp next_state
+          in process t next_state rest
+    in let rec aux automata = function   
+      | [] -> automata
+      | (inputs, combo_name) :: rest ->
+          let start_state = inc_state () in 
+          let aut, finale_state = process automata start_state inputs in
+          counter := 0;
+          let t = AutomataBuilder.add_final aut finale_state combo_name
+          in aux t rest
+      in aux automata combos
+end
+
+module Training : Automaton_sig.training = struct
+  includes AutomataTypes
+
+  let run_training path =
+    let parse_struct =  load_automaton path in
+      Validate.validate_automaton parse_struct;
+      AutomataBuilder.buildAutomata "machine"
+      |> AutomataBuilder.buildInput parse_struct.input_map
+      |> AutomataBuilder.buildInitial "s0"
+      |> TransitionBuilder.trainingAutomata parse_struct.combos
 end

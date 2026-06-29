@@ -27,6 +27,7 @@ let run grammarfile =
     end
   else
     begin
+      let automate = Training.run_training grammarfile
       print_endline ("Grammar file: " ^ grammarfile);
       print_endline "Parsing/training will be connected here.";
       print_endline "Execution loop will be connected here.";

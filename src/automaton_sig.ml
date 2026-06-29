@@ -1,6 +1,6 @@
 (* Automata implementation with the module type wich represente a finite state machine*)
 
-module type automata_types = sig 
+module type automataTypes = sig 
   type state
   type input
   type t
@@ -19,15 +19,23 @@ end
 module type automataBuilder = sig
   include automata_types
   val buildAutomata : string -> t
-  val buildInput : t -> ( input * string) list ->  t
-  val buildInitial :  t -> state -> t
-  val buildFinals : t -> (state * string) list -> t
-  val buildTransitions : t -> (state * (input * state) list) list -> t
-  val add_input : t -> input -> string -> t
-  val add_transition : t -> state -> input -> state -> t
-  val add_final : t -> state -> string -> t
+  val buildInput : ( input * string) list -> t ->  t
+  val buildInitial :  state -> t -> t
+  val buildFinals : (state * string) list -> t -> t
+  val buildTransitions : (state * (input * state) list) list -> t -> t
+  val add_input : input -> string -> t -> t
+  val add_transition : state -> input -> state -> t -> t
+  val add_final : tate -> string -> t -> t
 end 
 
-  module type transitionsBuilder = sig 
+module type transitions_builder = sig 
+  include automata_types
+  val count : int ref
+  val inc_state : unit -> string
+  val trainingAutomata : (input list * string) list -> t -> t
+end
 
-  end
+module type training = sig 
+  include automata_types
+  val run_training : string -> t
+end

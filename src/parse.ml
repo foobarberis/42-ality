@@ -68,5 +68,3 @@ let parse_automaton (in_channel: in_channel): Automaton.ParsingTypes.parsed_gram
 
 let load_automaton (path: string):  Automaton.ParsingTypes.parsed_grammar = 
   parse_automaton (load_grammar path)
-
-  

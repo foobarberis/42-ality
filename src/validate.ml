@@ -13,6 +13,6 @@ let validate_input (input_map: (string * string) List) =
 
 let validate_combos (combos: (string List * string)List) =
 
-let validate_parsing (parsed: Automaton.ParsingTypes.parsed_grammar) = 
+let validate_automaton (parsed: Automaton.ParsingTypes.parsed_grammar): unit = 
   validate_input parsed.input_map
   validate_combos parsed.combos
