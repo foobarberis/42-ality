@@ -25,7 +25,7 @@ module ParsingTypes = struct
     {gmr with combos = _combos}
 end
 
-module Automata : Automaton_sig.automata = struct
+module Automata : Automaton_sig.automata with type t = AutomataTypes.t and type input = AutomataTypes.input = struct
   include AutomataTypes
   let find_transition automata state input =
     match List.assoc_opt state automata.transitions with
@@ -82,7 +82,7 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
 = struct 
   include AutomataBuilder
 
-  let counter = ref 0
+  let counter = ref 1
 
   let inc_state () =
     let s = "s" ^ string_of_int !counter in
@@ -94,15 +94,18 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
       match inputs with
       | [] -> (automata, state)
       | inp :: rest ->
-        let next_state = inc_state () in 
-          let t = AutomataBuilder.add_transition state inp next_state automata
-          in process t next_state rest
+        match Automata.find_transition automata state inp with 
+          | Some existing_state ->
+            process automata existing_state rest
+          | None -> 
+             let next_state = inc_state () in 
+             let t = AutomataBuilder.add_transition state inp next_state automata
+             in process t next_state rest
     in let rec aux automata = function   
       | [] -> automata
       | (inputs, combo_name) :: rest ->
-          let start_state = inc_state () in 
+          let start_state = "s0" in 
           let aut, finale_state = process automata start_state inputs  in
-          counter := 0;
           let t = AutomataBuilder.add_final finale_state combo_name aut
           in aux t rest
       in aux automata combos
