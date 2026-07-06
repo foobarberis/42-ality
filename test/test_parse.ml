@@ -60,12 +60,18 @@ let () =
   run "field 'combos'" (fun () -> 
   let in_channel = load_grammar "test/fixtures/parse/good_synthax.gmr" in
   expect_equal
-    ["key1,key2,key3;combo_name1";
-    "key1,key2,key3,key4;combo_name2";
-    "key1,key2,key3,key4;combo_name3"]
+    ["token1,token2,token3;combo_name1";
+    "token1,token2,token3,token4;combo_name2";
+    "token1,token2,token3,token4;combo_name3"]
     (field "combos" in_channel)
     "Failed to execute field function"
     );
+
+  run "field 'combos' reject none 'combos' field" (fun () ->
+    let in_channel = load_grammar "test/fixtures/parse/missing_combos.gmr" in
+    expect_parse_error
+      (fun () -> field "combos" in_channel));
+  
 
   run "parse_input '[left;right]'" (fun () ->
     expect_equal 

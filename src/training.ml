@@ -15,11 +15,3 @@ module Training : training with type t = Automaton.AutomataTypes.t and type inpu
       |> Automaton.AutomataBuilder.buildInitial "s0"
       |> Automaton.TransitionBuilder.trainingAutomata parse_struct.combos
 end
-
-(* let run_training path =
-  let parse_struct = Parse.load_automaton path in
-  Validate.validate_automaton parse_struct
-  |> Automaton.AutomataBuilder.buildAutomata "machine"
-  |> Automaton.AutomataBuilder.buildInput parse_struct.input_map
-  |> Automaton.AutomataBuilder.buildInitial "s0"
-  |> Automaton.TransitionBuilder.trainingAutomata parse_struct.combosFile *)
