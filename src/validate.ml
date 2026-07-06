@@ -22,6 +22,10 @@ let validate_combos_name (combos: (string list * string)list) =
   let combo_names = List.map snd combos in
   ensure (not (has_duplicates combo_names)) "Duplicate combo names found in combos"
 
+let validate_combos_inputs_unique (combos: (string list * string)list) =
+  let pattern = List.map fst combos in
+   ensure (not (has_duplicates pattern)) "Duplicate input patterns found in combos"
+
 let validate_combos_inputs (combos: (string list * string) list) (input_map: (string * string) list) =
   let rec aux combos =
     match combos with
@@ -34,11 +38,12 @@ let validate_combos_inputs (combos: (string list * string) list) (input_map: (st
   in
   aux combos
 
-let validate_combos_inputs_
+
 let validate_automaton (parsed: Automaton.ParsingTypes.parsed_grammar): unit = 
   try
     validate_input parsed.input_map;
     validate_combos_name parsed.combos;
     validate_combos_inputs parsed.combos parsed.input_map;
+    validate_combos_inputs_unique parsed.combos;
   with Validation_error message ->
     failwith message
