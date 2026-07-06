@@ -1,5 +1,7 @@
 exception Parse_error of string
 
+let lookahead : string option ref = ref None
+
 let load_grammar (path: string): in_channel =
   try open_in path with
     | Sys_error msg -> raise (Parse_error ("Failed to open file: " ^ msg))
@@ -13,9 +15,14 @@ let get_next_line (in_channel: in_channel): string option =
     | End_of_file -> None
     | Sys_error msg -> raise (Parse_error ("Failed to read line: " ^ msg))
 
+let next_line (in_channel: in_channel): string option =
+  match !lookahead with
+  | Some line -> lookahead := None; Some line
+  | None -> get_next_line in_channel
+
 let find_field (name: string) (in_channel: in_channel): unit = 
   try let rec aux () = 
-    match get_next_line in_channel with 
+    match next_line in_channel with 
       | Some line when String.trim line = "#" ^ name -> ()
       | Some line -> aux ()
       | None ->  raise (Parse_error ("Failed to find field: " ^ name))
@@ -26,14 +33,16 @@ let find_field (name: string) (in_channel: in_channel): unit =
 let field (name: string) (in_channel: in_channel): string list =
   find_field name in_channel;
   try let rec aux acc =
-    match get_next_line in_channel with
-      | Some line when String.trim line = "" -> aux acc
-      | Some line when (String.trim line).[0] = '#' -> List.rev acc
-      | Some line -> aux (line :: acc)
-      | None -> List.rev acc
+    match next_line in_channel with
+    | Some line when String.trim line = "" -> aux acc
+    | Some line when (String.trim line).[0] = '#' ->
+        lookahead := Some line; 
+        List.rev acc
+    | Some line -> aux (line :: acc)
+    | None -> List.rev acc
   in aux [] with
-    | Parse_error msg -> raise (Parse_error ("Failed to read field: " ^ msg))
-    | Sys_error msg -> raise (Parse_error ("Failed to read field: " ^ msg))
+  | Parse_error msg -> raise (Parse_error ("Failed to read field: " ^ msg))
+  | Sys_error msg -> raise (Parse_error ("Failed to read field: " ^ msg))
 
 let parse_input (s: string list) (delimiter: char): (string * string) list =
   try let rec aux acc = function
@@ -67,4 +76,12 @@ let parse_automaton (in_channel: in_channel): Automaton.ParsingTypes.parsed_gram
   |> Automaton.ParsingTypes.build_parse_combos (parse_combos (field "combos" in_channel))
 
 let load_automaton (path: string):  Automaton.ParsingTypes.parsed_grammar = 
-  parse_automaton (load_grammar path)
+  let in_channel = load_grammar path in
+  try
+    let parsed_grammar = parse_automaton in_channel in
+    close_file in_channel;
+    parsed_grammar
+  with
+    | Parse_error msg ->
+        close_file in_channel;
+        raise (Parse_error ("Failed to parse automaton: " ^ msg))
