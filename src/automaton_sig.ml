@@ -1,5 +1,3 @@
-(* Automata implementation with the module type wich represente a finite state machine*)
-
 module type automata_types = sig 
   type input
   type t

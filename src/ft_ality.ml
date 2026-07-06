@@ -19,6 +19,26 @@ let can_read_file path =
   with
   | Sys_error _ -> false
 
+let string_of_transitions (transition: (string * (string * string)list)list) =
+  let rec aux acc = function
+    | [] -> acc
+    | (state, transitions) :: rest ->
+      let transition_str = List.map
+          (fun (input, next_state) -> Printf.sprintf "    %s --%s--> %s" state input next_state) 
+          transitions
+        in
+        let new_acc = acc ^ String.concat "\n" transition_str ^ "\n" in
+        aux new_acc rest
+  in aux "" transition
+
+let string_of_finals (finals: (string * string)list) =
+  let rec aux acc = function
+    | [] -> acc
+    | (state, combo_name) :: rest ->
+      let new_acc = acc ^ Printf.sprintf "   %s is final for combo: %s\n" state combo_name in
+      aux new_acc rest
+    in aux "" finals
+
 let run grammarfile =
   if not (can_read_file grammarfile) then
     begin
@@ -28,6 +48,9 @@ let run grammarfile =
   else
     begin
       let automate = Training.Training.run_training grammarfile in
+      print_endline (string_of_transitions automate.Automaton.AutomataTypes.transitions);
+      print_endline (string_of_finals automate.Automaton.AutomataTypes.finals);
+      print_endline ("Automata name: " ^ automate.Automaton.AutomataTypes.name);
       print_endline ("Automata name: " ^ automate.Automaton.AutomataTypes.name);
       print_endline ("Grammar file: " ^ grammarfile);
       print_endline "Parsing/training will be connected here.";
@@ -72,6 +95,10 @@ let () =
   | Failure message ->
       prerr_endline ("Error: " ^ message);
       exit 1
+  | Parse.Parse_error message -> 
+    prerr_endline ("Error: " ^ message);
+    exit 1
   | _ ->
-      prerr_endline "Error: unexpected failure";
-      exit 1
+    prerr_endline "Error: unexpected failure";
+    exit 1
+
