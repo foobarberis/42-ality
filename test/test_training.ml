@@ -16,6 +16,14 @@ let run name f =
   | Failure message -> fail name message
   | exn -> fail name (Printexc.to_string exn)
 
+let string_of_finals (finals: (string * string)list) =
+  let rec aux acc = function
+    | [] -> acc
+    | (state, combo_name) :: rest ->
+      let new_acc = acc ^ Printf.sprintf "   %s is final for combo: %s\n" state combo_name in
+      aux new_acc rest
+    in aux "" finals
+
 let string_of_transitions (transition: (string * (string * string)list)list) =
   let rec aux acc = function
     | [] -> acc
@@ -28,17 +36,9 @@ let string_of_transitions (transition: (string * (string * string)list)list) =
         aux new_acc rest
   in aux "" transition
 
-let expect_transition condition message actual expected = 
-  let msg = message ^ "\n actual:\n" ^ string_of_transitions actual ^ " expected:\n" ^ string_of_transitions expected in
-  if not condition then
-    failwith msg
-
 let expect condition message  = 
   if not condition then
     failwith message
-
-let expect_equal_transitions expected actual message =
-  expect_transition (expected = actual) message actual expected
 
 let expect_equal expected actual message =
   expect (expected = actual) message 
@@ -48,12 +48,12 @@ let () =
 
   run "test training_01.gmr" (fun () ->
     let automata = Training.run_training "test/fixtures/training/training_01.gmr" in
-    expect_equal_transitions [("s0", [("token2", "s2"); ("token1", "s1")]);
-                  ("s1", [("token1", "h1"); ("token2", "h0")]);
-                  ("s2", [("token3", "h2")])]
+    expect_equal [("s0", [("token2", "s4"); ("token1", "s1")]);
+                  ("s1", [("token1", "s3"); ("token2", "s2")]);
+                  ("s4", [("token3", "s5")])]
                 automata.transitions
                 "Failed to build transitions correctly";
-    expect_equal [("h0", "combo_name1"); ("h1", "combo_name2"); ("h2", "combo_name3")]
+    expect_equal [("s2", "combo_name1"); ("s3", "combo_name2"); ("s5", "combo_name3")]
                 automata.finals
                 "Failed to build finals correctly";
 	  expect_equal [("key1", "token1"); ("key2", "token2"); ("key3", "token3")]
@@ -64,20 +64,19 @@ let () =
 				        "Failed to set initial state correctly"
     );
 
-  run "test training_01.gmr" (fun () ->
+  run "test training_02.gmr" (fun () ->
     let cool = Training.run_training "test/fixtures/training/training_02.gmr" in
-    expect_equal_transitions [("h0", [("the", "s3")]);
-                  ("h5", [("gang", "h6")]);
-                  ("s0", [("gang", "s4"); ("the", "s2"); ("cool", "s1")]);
-                  ("s1", [("gang", "h3"); ("and", "h0")]);
-                  ("s2", [("cool", "h5"); ("gang", "h1")]);
-                  ("s3", [("gang", "h2")]);
-                  ("s4", [("cool", "h7"); ("and", "h4")])]
+    expect_equal [("s0", [("gang", "s8"); ("the", "s3"); ("cool", "s1")]);
+                  ("s1", [("gang", "s7"); ("and", "s2")]);
+                  ("s2", [("the", "s5")]);
+                  ("s3", [("cool", "s10"); ("gang", "s4")]);
+                  ("s5", [("gang", "s6")]);
+                  ("s8", [("cool", "s12"); ("and", "s9")]);
+                  ("s10", [("gang", "s11")])]
                   cool.transitions
                   "Failed to build transitions correctly";
-    expect_equal [("h0", "cool_and"); ("h1", "the_gang"); ("h2", "cool_and_the_gang");
-                  ("h3", "cool_gang"); ("h4", "gang_and"); ("h5", "the_cool");
-                  ("h6", "the_cool_gang"); ("h7", "gang_cool")]
+    expect_equal       ("s7", "cool_gang"); ("s9", "gang_and"); ("s10", "the_cool");
+                  ("s11", "the_cool_gang"); ("s12", "gang_cool")]
                   cool.finals
                   "Failed to build finals correctly";
     expect_equal [("a", "cool"); ("b", "and"); ("c", "the"); ("d", "gang")]
