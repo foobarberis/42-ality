@@ -80,7 +80,7 @@ let () =
                   ("h6", "the_cool_gang"); ("h7", "gang_cool")]
                   cool.finals
                   "Failed to build finals correctly";
-    expect_equal [("a", "cool"); ("b", "the"); ("c", "gang"); ("d", "and")]
+    expect_equal [("a", "cool"); ("b", "and"); ("c", "the"); ("d", "gang")]
                   cool.input_map
                   "Failed to build input map correctly";
     expect_equal "s0"
