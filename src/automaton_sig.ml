@@ -27,8 +27,10 @@ end
 
 module type transitions_builder = sig 
   include automataBuilder
-  val counter : int ref
+  val state_counter : int ref
+  val finals_counter : int ref
   val inc_state : unit -> string
+  val inc_final : unit -> string
   val trainingAutomata : (input list * string) list -> t -> t
   val sort_automata : t -> t
 end
