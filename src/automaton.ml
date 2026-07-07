@@ -85,19 +85,14 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
   type transition_builder = {
     automata: AutomataTypes.t;
     state_counter: int;
-    final_counter: int;
   }
 
   let inc_state counter =
     let s = "s" ^ string_of_int counter in
     (s, counter + 1)
 
-  let inc_final counter =
-    let s = "h" ^ string_of_int counter in
-    (s, counter + 1)
-
   let trainingAutomata combos automata =
-    let builder = {automata; state_counter = 1; final_counter = 0} in
+    let builder = {automata; state_counter = 1} in
       let rec process builder state inputs =
         match inputs with
         | [] -> (builder, state)
@@ -106,12 +101,9 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
             | Some existing_state ->
               process builder existing_state rest
             | None -> 
-               let next_state, new_counter = if rest = [] then inc_final builder.final_counter else inc_state builder.state_counter in 
+               let next_state, new_counter = inc_state builder.state_counter in 
                let t = AutomataBuilder.add_transition state inp next_state builder.automata in
-               if rest = [] then
-                  process {builder with automata = t; final_counter = new_counter} next_state rest
-               else
-                  process {builder with automata = t; state_counter = new_counter} next_state rest
+                process {automata = t; state_counter = new_counter} next_state rest
       in let rec aux builder = function   
         | [] -> builder.automata  
         | (inputs, combo_name) :: rest ->
@@ -120,9 +112,14 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
             let t = AutomataBuilder.add_final final_state combo_name build.automata in
             aux {build with automata = t} rest
         in aux builder combos
-    
+
+    let compare_state s1 s2 =
+      let num1 = int_of_string (String.sub s1 1 (String.length s1 -1)) in
+      let num2 = int_of_string (String.sub s2 1 (String.length s2 -1)) in
+      compare num1 num2
+
     let sort_automata automata = 
-      let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes.transitions in
-      let sorted_finals = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes  .finals in
+      let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes.transitions in
+      let sorted_finals = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes  .finals in
       AutomataBuilder.buildTransitions sorted_transitions (AutomataBuilder.buildFinals sorted_finals automata)
 end
