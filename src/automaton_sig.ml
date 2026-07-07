@@ -30,4 +30,5 @@ module type transitions_builder = sig
   val counter : int ref
   val inc_state : unit -> string
   val trainingAutomata : (input list * string) list -> t -> t
+  val sort_automata : t -> t
 end

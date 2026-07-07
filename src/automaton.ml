@@ -109,4 +109,9 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
           let t = AutomataBuilder.add_final finale_state combo_name aut
           in aux t rest
       in aux automata combos
+    
+    let sort_automata automata = 
+      let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes.transitions in
+      let sorted_finals = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes  .finals in
+      AutomataBuilder.buildTransitions sorted_transitions (AutomataBuilder.buildFinals sorted_finals automata)
 end

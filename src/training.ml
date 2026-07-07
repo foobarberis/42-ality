@@ -14,4 +14,5 @@ module Training : training with type t = Automaton.AutomataTypes.t and type inpu
       |> Automaton.AutomataBuilder.buildInput parse_struct.input_map
       |> Automaton.AutomataBuilder.buildInitial "s0"
       |> Automaton.TransitionBuilder.trainingAutomata parse_struct.combos
+      |> Automaton.TransitionBuilder.sort_automata
 end
