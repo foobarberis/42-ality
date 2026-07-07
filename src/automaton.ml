@@ -82,42 +82,45 @@ module TransitionBuilder : Automaton_sig.transitions_builder with type t = Autom
 = struct 
   include AutomataBuilder
 
-  let state_counter = ref 1
+  type transition_builder = {
+    automata: AutomataTypes.t;
+    state_counter: int;
+    final_counter: int;
+  }
 
-  let finals_counter = ref 0
+  let inc_state counter =
+    let s = "s" ^ string_of_int counter in
+    (s, counter + 1)
 
-  let inc_state () =
-    let s = "s" ^ string_of_int !state_counter in
-    incr state_counter;
-    s
-
-  let inc_final () =
-    let f = "h" ^ string_of_int !finals_counter in
-    incr finals_counter;
-    f
+  let inc_final counter =
+    let s = "h" ^ string_of_int counter in
+    (s, counter + 1)
 
   let trainingAutomata combos automata =
-    let rec process automata state inputs =
-      match inputs with
-      | [] -> (automata, state)
-      | inp :: rest ->
-        match Automata.find_transition automata state inp with 
-          | Some existing_state ->
-            process automata existing_state rest
-          | None -> 
-             let next_state = inc_state () in 
-             let t = AutomataBuilder.add_transition state inp next_state automata
-             in process t next_state rest
-    in let rec aux automata = function   
-      | [] -> automata
-      | (inputs, combo_name) :: rest ->
-          let start_state = automata.AutomataTypes.initial in 
-          let final_state = inc_final () in
-          let aut, s = process automata start_state inputs  in
-          let t = AutomataBuilder.add_final final_state combo_name aut
-          in aux t rest
-      in aux automata combos
-
+    let builder = {automata; state_counter = 1; final_counter = 0} in
+      let rec process builder state inputs =
+        match inputs with
+        | [] -> (builder, state)
+        | inp :: rest ->
+          match Automata.find_transition builder.automata state inp with 
+            | Some existing_state ->
+              process builder existing_state rest
+            | None -> 
+               let next_state, new_counter = if rest = [] then inc_final builder.final_counter else inc_state builder.state_counter in 
+               let t = AutomataBuilder.add_transition state inp next_state builder.automata in
+               if rest = [] then
+                  process {builder with automata = t; final_counter = new_counter} next_state rest
+               else
+                  process {builder with automata = t; state_counter = new_counter} next_state rest
+      in let rec aux builder = function   
+        | [] -> builder.automata  
+        | (inputs, combo_name) :: rest ->
+            let start_state = builder.automata.AutomataTypes.initial in 
+            let build, final_state = process builder start_state inputs  in
+            let t = AutomataBuilder.add_final final_state combo_name build.automata in
+            aux {build with automata = t} rest
+        in aux builder combos
+    
     let sort_automata automata = 
       let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes.transitions in
       let sorted_finals = List.sort (fun (s1, _) (s2, _) -> String.compare s1 s2) automata.AutomataTypes  .finals in
