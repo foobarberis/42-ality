@@ -4,9 +4,17 @@ NAME = ft_ality
 BYTE = $(NAME).byte
 SRCDIR = src
 BUILDDIR = _build
+UNIT = $(BUILDDIR)/test_unit.byte
+UNIT_OBJ = $(BUILDDIR)/test_parse.cmo \
+		   $(BUILDDIR)/test_validate.cmo \
+			$(BUILDDIR)/test_training.cmo
 
-MODULES = ft_ality
+MODULES = automaton_sig automaton parse validate training ft_ality
 SRC_ML = $(addprefix $(SRCDIR)/,$(addsuffix .ml,$(MODULES)))
+TEST_ML = test/test_parse.ml \
+		  test/test_validate.ml \
+		  test/test_training.ml
+
 NATIVE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmx,$(MODULES)))
 BYTE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmo,$(MODULES)))
 DEPFILE = $(BUILDDIR)/depend.mk
@@ -56,14 +64,27 @@ $(BUILDDIR)/%.cmx: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
 $(BUILDDIR)/%.cmo: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
+$(BUILDDIR)/test_parse.cmo: test/test_parse.ml Makefile | $(BUILDDIR) setup
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
+
+$(BUILDDIR)/test_validate.cmo: test/test_validate.ml Makefile | $(BUILDDIR) setup
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
+
+$(BUILDDIR)/test_training.cmo: test/test_training.ml Makefile | $(BUILDDIR) setup
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
+
 $(NAME): $(NATIVE_OBJ)
 	$(RUN) ocamlfind ocamlopt $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
 
 $(BYTE): $(BYTE_OBJ)
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
 
-unit ut:
-	@echo "No unit tests yet"
+$(UNIT): $(BUILDDIR)/automaton.cmo  $(BUILDDIR)/parse.cmo  $(BUILDDIR)/validate.cmo $(BUILDDIR)/training.cmo $(UNIT_OBJ)
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
+
+unit ut: $(UNIT)
+	@$(RUN) ./$(UNIT)
+# 	@echo "No unit tests yet"
 
 e2e:
 	@echo "No end-to-end tests yet"

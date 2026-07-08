@@ -1,0 +1,9 @@
+#input
+key1;token1
+key2;token2
+key3;token3
+
+#combos
+token1,token2;combo_name1
+token1,token1;combo_name2
+token2,token3;combo_name3
