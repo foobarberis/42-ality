@@ -1,40 +1,125 @@
-(* Automata implementation with the module type wich represente a finite state machine*)
-
-module type automata_types = sig 
-  type state
-  type input
-  type t
-  (* type t = {
+module AutomataTypes = struct
+  type input = string
+  type t = {
     name : string;
     input_map : (input * string) list;
-    initial : state;
-    finals : (state * string) list;
-    transitions : (state * (input * state) list) list;
-  } *)
+    initial : string;
+    finals : (string * string) list;
+    transitions : (string * (input * string) list) list;
+    }
+end
+  
+module ParsingTypes = struct 
+  type parsed_grammar = {
+  input_map : (AutomataTypes.input * string) list;
+  combos : (AutomataTypes.input list * string) list;
+  }
+
+  let build_parsed_grammar =
+    {input_map = []; combos = []}
+  
+  let build_parsed_inputs _input_map gmr = 
+    {gmr with input_map = _input_map}
+
+  let build_parse_combos _combos gmr= 
+    {gmr with combos = _combos}
 end
 
-module type automata = sig
-  (* for help execution *)
-  include automata_types
-  val step : t -> state -> input -> state option
-  val find_transition : t -> state -> input -> state option
-  val is_final : t -> state -> bool
-  val get_final_combo : t -> state -> string option
-  val get_move : t -> input -> string option
+module Automata : Automaton_sig.automata with type t = AutomataTypes.t and type input = AutomataTypes.input = struct
+  include AutomataTypes
+  let find_transition automata state input =
+    match List.assoc_opt state automata.transitions with
+      | Some transitions -> List.assoc_opt input transitions
+      | None -> None
+
+  let step automata state input = 
+    find_transition automata state input
+    (* TODO complete step implementation here *)
+
+  let is_final automata state =
+    List.mem_assoc state automata.finals
+    
+  let get_final_combo automata state =
+    List.assoc_opt state automata.finals
+
+  let get_move automata input = 
+    List.assoc_opt input automata.input_map
 end
 
-module type automataBuilder = sig
-  include automata_types
-  val buildAutomata : string -> t
-  val buildInput : t -> ( input * string) list ->  t
-  val buildInitial :  t -> state -> t
-  val buildFinals : t -> (state * string) list -> t
-  val buildTransitions : t -> (state * (input * state) list) list -> t
-  val add_input : t -> input -> string -> t
-  val add_transition : t -> state -> state -> t
-  val add_final : t -> state -> string -> t
-  val mark_final : t -> state -> string -> t
-end 
+module AutomataBuilder : Automaton_sig.automataBuilder with type t = AutomataTypes.t and type input = AutomataTypes.input = struct
+  include AutomataTypes
+  let buildAutomata automata_name =
+    {name = automata_name; input_map = []; initial = "s0"; finals = []; transitions = []}
 
-(* module type transitionsBuilder = sig 
-end *)
+  let buildInput _input_map automata =
+    {automata with input_map = _input_map}
+  
+  let buildInitial init_state automata =
+    {automata with initial = init_state}
+  
+  let buildFinals _finals automata =
+    {automata with finals = _finals}
+  
+  let buildTransitions _transitions automata =
+    {automata with transitions = _transitions}
+  
+  let add_input input move_name automata =
+    {automata with input_map = (input, move_name) :: automata.input_map}
+
+  let add_transition from_state input to_state automata =
+    match List.assoc_opt from_state automata.transitions with
+      | Some transitions ->
+        let new_transitions = (input, to_state) :: transitions in
+          {automata with transitions = (from_state, new_transitions) :: List.remove_assoc from_state automata.transitions}
+      | None ->
+        {automata with transitions = (from_state, [ (input, to_state) ]) :: automata.transitions}
+
+  let add_final state combo_name automata =
+    {automata with finals = (state, combo_name) :: automata.finals}
+end
+
+module TransitionBuilder : Automaton_sig.transitions_builder with type t = AutomataTypes.t and type input = AutomataTypes.input 
+= struct 
+  include AutomataBuilder
+
+  type transition_builder = {
+    automata: AutomataTypes.t;
+    state_counter: int;
+  }
+
+  let inc_state counter =
+    let s = "s" ^ string_of_int counter in
+    (s, counter + 1)
+
+  let trainingAutomata combos automata =
+    let builder = {automata; state_counter = 1} in
+      let rec process builder state inputs =
+        match inputs with
+        | [] -> (builder, state)
+        | inp :: rest ->
+          match Automata.find_transition builder.automata state inp with 
+            | Some existing_state ->
+              process builder existing_state rest
+            | None -> 
+               let next_state, new_counter = inc_state builder.state_counter in 
+               let t = AutomataBuilder.add_transition state inp next_state builder.automata in
+                process {automata = t; state_counter = new_counter} next_state rest
+      in let rec aux builder = function   
+        | [] -> builder.automata  
+        | (inputs, combo_name) :: rest ->
+            let start_state = builder.automata.AutomataTypes.initial in 
+            let build, final_state = process builder start_state inputs  in
+            let t = AutomataBuilder.add_final final_state combo_name build.automata in
+            aux {build with automata = t} rest
+        in aux builder combos
+
+    let compare_state s1 s2 =
+      let num1 = int_of_string (String.sub s1 1 (String.length s1 -1)) in
+      let num2 = int_of_string (String.sub s2 1 (String.length s2 -1)) in
+      compare num1 num2
+
+    let sort_automata automata = 
+      let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes.transitions in
+      let sorted_finals = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes  .finals in
+      AutomataBuilder.buildTransitions sorted_transitions (AutomataBuilder.buildFinals sorted_finals automata)
+end

@@ -1,0 +1,15 @@
+#input
+a;cool
+b;and
+c;the
+d;gang
+
+#combos
+cool,and;cool_and
+the,gang;the_gang
+cool,and,the,gang;cool_and_the_gang
+cool,gang;cool_gang
+gang,and;gang_and
+the,cool;the_cool
+the,cool,gang;the_cool_gang
+gang,cool;gang_cool
