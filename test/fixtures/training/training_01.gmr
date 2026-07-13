@@ -1,7 +1,7 @@
 #input
-key1;token1
-key2;token2
-key3;token3
+1;token1
+2;token2
+3;token3
 
 #combos
 token1,token2;combo_name1

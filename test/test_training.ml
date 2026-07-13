@@ -56,7 +56,7 @@ let () =
     expect_equal [("s2", "combo_name1"); ("s3", "combo_name2"); ("s5", "combo_name3")]
                 automata.finals
                 "Failed to build finals correctly";
-	  expect_equal [("key1", "token1"); ("key2", "token2"); ("key3", "token3")]
+	  expect_equal [("1", "token1"); ("2", "token2"); ("3", "token3")]
 				        automata.input_map
 				        "Failed to build input map correctly";
 	  expect_equal "s0" 
@@ -75,7 +75,9 @@ let () =
                   ("s10", [("gang", "s11")])]
                   cool.transitions
                   "Failed to build transitions correctly";
-    expect_equal       ("s7", "cool_gang"); ("s9", "gang_and"); ("s10", "the_cool");
+    expect_equal [("s2", "cool_and"); ("s4", "the_gang");
+                  ("s6", "cool_and_the_gang"); ("s7", "cool_gang");
+                  ("s9", "gang_and"); ("s10", "the_cool");
                   ("s11", "the_cool_gang"); ("s12", "gang_cool")]
                   cool.finals
                   "Failed to build finals correctly";
