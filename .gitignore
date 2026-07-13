@@ -1,7 +1,7 @@
 _build/
+.opam/
 _opam/
 ft_ality
-ft_ality.byte
 *.cmi
 *.cmo
 *.cmx
