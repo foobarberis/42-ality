@@ -149,3 +149,22 @@ let load_automaton path =
   | exception error ->
       close_in_noerr channel;
       raise error
+
+let string_of_grammar grammar =
+  let inputs =
+    grammar.Automaton.ParsingTypes.input_map
+    |> List.map (fun (key, token) -> key ^ " -> " ^ token)
+    |> String.concat "\n"
+  in
+  let combos =
+    grammar.Automaton.ParsingTypes.combos
+    |> List.map (fun (tokens, name) ->
+           String.concat ", " tokens ^ " -> " ^ name)
+    |> String.concat "\n"
+  in
+  "Possible inputs:\n" ^ inputs
+  ^ "\n\nPossible combos:\n" ^ combos
+  ^ "\n----------------------\n"
+
+let print_grammar ?(channel = stdout) grammar =
+  output_string channel (string_of_grammar grammar)
