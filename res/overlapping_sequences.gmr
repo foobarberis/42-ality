@@ -1,0 +1,11 @@
+#input
+q;A
+w;B
+e;C
+r;D
+
+#combos
+A,B;Move AB
+A,C;Move AC
+B;Move B
+B,D;Move BD

@@ -1,0 +1,8 @@
+#input
+q;a
+w;b
+
+#combos
+a;Move A
+a,b;Move B
+a,b,a;Move C

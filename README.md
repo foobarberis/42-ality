@@ -26,17 +26,17 @@ make
 ### Usage
 
 ```sh
-./ft_ality path/to/grammar.gmr
+./ft_ality res/subject.gmr
 ```
 
-Current base behavior only validates the command line and checks that the grammar file exists. Parsing, automaton training, and keyboard execution will be connected as the project grows.
+The program trains an automaton from the grammar, displays the key mapping, and recognizes configured moves from keyboard input.
 
 ### Make targets
 
 - `make` or `make all` — install required dependencies if needed, then build `ft_ality`
 - `make byte` — build `ft_ality.byte`
-- `make unit` or `make ut` — placeholder for future unit tests
-- `make e2e` — placeholder for future end-to-end tests
+- `make unit` or `make ut` — run unit tests
+- `make e2e` — run end-to-end tests
 - `make test` — run `unit` and `e2e`
 - `make setup` — create the local `opam` switch and install required dependencies
 - `make clean` — remove `_build/`
@@ -46,7 +46,7 @@ Current base behavior only validates the command line and checks that the gramma
 
 ## Project overview
 
-The program will eventually run in two phases:
+The program runs in two phases:
 
 1. **Training**
    - read the grammar file;
@@ -54,7 +54,7 @@ The program will eventually run in two phases:
    - build a finite-state automaton from those sequences.
 
 2. **Execution**
-   - compute a keyboard mapping from the grammar tokens;
+   - read the keyboard mapping declared by the grammar;
    - wait for key presses;
    - move through the automaton one token at a time;
    - display recognized move names when a final state is reached.
@@ -63,33 +63,112 @@ The program will eventually run in two phases:
 
 ### Grammar
 
-A grammar file describes moves as names associated with token sequences.
-
-Each non-empty line is one rule:
+A grammar file has two sections, in this order:
 
 ```text
-<move name>;<token1>,<token2>,<token3>
+#input
+<key>;<token>
+...
+
+#combos
+<token>,<token>,...;<move name>
+...
 ```
 
-Examples:
+`#input` declares the keyboard mapping. Each entry maps one physical-key
+identifier to one automaton token:
 
 ```text
-Move A;a
-Move B;a,b
-Move C;a,b,a
-Claw Slam (Freddy Krueger);[BP]
-Saibot Blast (Noob Saibot);[BP],[FP]
+q;Block
+down;Down
+s;[BK]
+d;[BP]
 ```
 
-The parser should read this as:
+A key identifier is either one printable character other than whitespace, `;`,
+`,`, and `#`, or a named key. Named keys are lowercase and use these canonical
+names:
 
 ```text
-Move A -> a
-Move B -> a, b
-Move C -> a, b, a
-Claw Slam (Freddy Krueger) -> [BP]
-Saibot Blast (Noob Saibot) -> [BP], [FP]
+up down left right
+space tab enter escape backspace
+semicolon comma hash
+f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12
 ```
+
+Use `semicolon`, `comma`, and `hash` instead of the literal characters because
+`;` is the field separator, `,` separates combo tokens, and a trimmed line
+beginning with `#` is reserved for section headers. Whitespace cannot be a
+literal key identifier; use `space` or `tab`. Hardware-specific keys such as
+`fn` are not supported.
+
+`#combos` declares the moves learned by the automaton. The left side is the
+ordered token sequence; the right side is the move name shown when that
+sequence is recognized:
+
+```text
+[BP],[BK],[BK],Up;Sonya
+[BP],[BP],[FP];Freddy Krueger
+```
+
+The complete format is therefore:
+
+```text
+#input
+q;Block
+down;Down
+w;Flip Stance
+left;Left
+right;Right
+e;Tag
+a;Throw
+up;Up
+s;[BK]
+d;[BP]
+z;[FK]
+x;[FP]
+
+#combos
+[BP],[BP],[FP];Freddy Krueger
+[BP],[BK],[BK],Up;Sonya
+```
+
+#### Grammar rules
+
+- The first non-blank line is `#input`. `#input` appears once and precedes
+  the single `#combos` header.
+- Blank lines are ignored.
+- Whitespace around keys, tokens, move names, `;`, and `,` is ignored.
+  Whitespace within a token or move name is preserved.
+- Keys, tokens, and move names are compared case-sensitively after trimming.
+- Section headers must be exactly `#input` and `#combos` after trimming
+  surrounding whitespace.
+- Each input entry contains exactly one `;`, with a non-empty supported key
+  identifier on the left and a non-empty token on the right. Keys and tokens
+  cannot contain `;` or `,`.
+- Each key and token in `#input` is unique.
+- A valid grammar contains at least one input mapping.
+- Each combo entry contains exactly one `;`, with a non-empty move name on the
+  right. Move names cannot contain `;` and are unique across `#combos`.
+- The left side of a combo is one or more non-empty tokens separated by `,`.
+  Leading, trailing, and repeated commas are invalid.
+- Every combo token must be declared in `#input`. A token may occur more than
+  once in one combo and in any number of combo entries.
+- A valid grammar contains at least one combo entry.
+- Input and combo entries retain their file order, which is also their display
+  order.
+- Several combo entries may use the same token sequence. They represent
+  homonymous moves and every distinct associated move name must be displayed.
+  An identical combo entry is invalid.
+- Comments and escaping are not supported. A trimmed line beginning with `#`
+  is valid only when it is a section header; `#` elsewhere has no special
+  meaning.
+
+An empty section is structurally valid, but the grammar fails validation when
+`#input` has no mapping or `#combos` has no combo entry.
+
+The program derives its displayed key mapping from `#input`; mappings must not
+be hardcoded in the executable.
 
 ### Automaton
 
@@ -112,18 +191,14 @@ The execution layer keeps track of:
 
 On each key press, the program tries to follow a transition. If the new state is final, the associated move name is displayed.
 
-## Implementation notes
+## Source layout
 
-Current source layout:
-
-- `src/ft_ality.ml` — CLI entry point
-- `res/sample.gmr` — small grammar fixture for smoke checks
-
-Planned source layout:
-
-- `src/grammar.ml` — grammar parsing
+- `src/parse.ml` — grammar parsing
+- `src/validate.ml` — grammar validation
 - `src/automaton.ml` — automaton representation and training
-- `src/keymap.ml` — keyboard mapping
-- `src/execute.ml` — runtime input loop
-
-This layout may change as implementation details become clearer.
+- `src/training.ml` — training orchestration
+- `src/ft_ality.ml` — CLI entry point
+- `res/subject.gmr` — grammar matching the subject example
+- `res/common_prefix.gmr` — common-prefix grammar with three final states
+- `res/overlapping_sequences.gmr` — overlapping sequences for input-reset checks
+- `res/ten_word_sentence.gmr` — larger grammar example
