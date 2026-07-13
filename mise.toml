@@ -1,0 +1,2 @@
+[tools]
+opam = { version = "latest", asset_pattern = "opam-*-{gnu_arch}-{os}" }
