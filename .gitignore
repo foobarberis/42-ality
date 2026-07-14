@@ -1,4 +1,6 @@
 _build/
+.deps/
+.local/
 _opam/
 ft_ality
 ft_ality.byte

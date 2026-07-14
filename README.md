@@ -20,8 +20,16 @@
 ### Build
 
 ```sh
+mise install
 make
 ```
+
+The build downloads pinned SDL2 and SDL12-compat sources, installs them into
+`.local/sdl`, then installs the OCaml binding through opam. SDL12-compat
+provides the SDL 1.2 API and `sdl-config` needed by `ocamlsdl`; no global SDL
+installation is needed. The local switch uses OCaml 4.14.2 because `ocamlsdl`
+exposes the required `Sdl`, `Sdlevent`, and `Sdlkey` modules but supports OCaml
+versions before 5.
 
 ### Usage
 
@@ -42,7 +50,7 @@ The program trains an automaton from the grammar, displays the key mapping, and 
 - `make clean` — remove `_build/`
 - `make fclean` — run `clean` and remove binaries
 - `make re` — run `fclean` then rebuild
-- `make distclean` — run `fclean` and remove the local `_opam/` switch
+- `make distclean` — run `fclean` and remove local SDL sources, libraries, and the `_opam/` switch
 
 ## Project overview
 
