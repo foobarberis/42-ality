@@ -42,21 +42,19 @@ let parse_args args =
   | [grammarfile] -> Run grammarfile
   | _ -> Error
 
+let arguments () =
+  match Sys.argv with
+  | [| _; argument |] -> [argument]
+  | _ -> []
+
 let main () =
-  match Array.to_list Sys.argv with
-  | _ :: args ->
-      begin
-        match parse_args args with
-        | Help ->
-            print_usage stdout;
-            0
-        | Run grammarfile ->
-            run grammarfile
-        | Error ->
-            print_usage stderr;
-            1
-      end
-  | [] ->
+  match parse_args (arguments ()) with
+  | Help ->
+      print_usage stdout;
+      0
+  | Run grammarfile ->
+      run grammarfile
+  | Error ->
       print_usage stderr;
       1
 

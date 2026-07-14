@@ -213,6 +213,12 @@ start state. If it cannot start a move, the current sequence is empty.
 A recognized final state remains active when it has outgoing transitions. This
 allows a longer move sharing its prefix to be recognized.
 
+## Implementation notes
+
+Production code only depends on project modules and the subject's module
+allowlist: `Pervasives`, `List`, `String`, `Sys`, `Sdl`, `Sdlevent`, and
+`Sdlkey`. It does not use the forbidden `open` keyword or `;;` token.
+
 ## Source layout
 
 - `src/parse.ml` — grammar parsing

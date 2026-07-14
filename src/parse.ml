@@ -5,8 +5,11 @@ type section =
   | Inputs
   | Combos
 
+let line_error line reason =
+  "line " ^ string_of_int line ^ ": " ^ reason
+
 let syntax_error line reason =
-  raise (Parse_error (Printf.sprintf "line %d: %s" line reason))
+  raise (Parse_error (line_error line reason))
 
 let load_grammar path =
   try open_in path with
@@ -33,7 +36,7 @@ let is_direct_key key =
     false
   else
     let character = key.[0] in
-    let code = Char.code character in
+    let code = int_of_char character in
     code >= 33 && code <= 126
     && character <> ';'
     && character <> ','
@@ -135,8 +138,8 @@ let parse_automaton channel =
     | exception Sys_error message ->
         raise
           (Parse_error
-             (Printf.sprintf "line %d: failed to read grammar file: %s"
-                line_number message))
+             (line_error line_number
+                ("failed to read grammar file: " ^ message)))
   in
   read_lines 1 Expect_input [] []
 
