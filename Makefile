@@ -18,14 +18,16 @@ SDL12_BUILD = $(DEPSDIR)/build-sdl12-compat
 SDL2_STAMP = $(SDL2_BUILD)/installed
 SDL_CONFIG = $(SDL_PREFIX)/bin/sdl-config
 UNIT = $(BUILDDIR)/test_unit.byte
-UNIT_OBJ = $(BUILDDIR)/test_parse.cmo \
+UNIT_OBJ = $(BUILDDIR)/test_support.cmo \
+		   $(BUILDDIR)/test_parse.cmo \
 		   $(BUILDDIR)/test_validate.cmo \
 		   $(BUILDDIR)/test_training.cmo \
 		   $(BUILDDIR)/test_execution.cmo
 
 MODULES = automaton_sig automaton parse validate training execution keyboard ft_ality
 SRC_ML = $(addprefix $(SRCDIR)/,$(addsuffix .ml,$(MODULES)))
-TEST_ML = test/test_parse.ml \
+TEST_ML = test/test_support.ml \
+		  test/test_parse.ml \
 		  test/test_validate.ml \
 		  test/test_training.ml \
 		  test/test_execution.ml
@@ -126,16 +128,19 @@ $(BUILDDIR)/%.cmx: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
 $(BUILDDIR)/%.cmo: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
-$(BUILDDIR)/test_parse.cmo: test/test_parse.ml Makefile | $(BUILDDIR) setup
+$(BUILDDIR)/test_support.cmo: test/test_support.ml Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
-$(BUILDDIR)/test_validate.cmo: test/test_validate.ml Makefile | $(BUILDDIR) setup
+$(BUILDDIR)/test_parse.cmo: test/test_parse.ml $(BUILDDIR)/test_support.cmo Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
-$(BUILDDIR)/test_training.cmo: test/test_training.ml Makefile | $(BUILDDIR) setup
+$(BUILDDIR)/test_validate.cmo: test/test_validate.ml $(BUILDDIR)/test_support.cmo Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
-$(BUILDDIR)/test_execution.cmo: test/test_execution.ml Makefile | $(BUILDDIR) setup
+$(BUILDDIR)/test_training.cmo: test/test_training.ml $(BUILDDIR)/test_support.cmo Makefile | $(BUILDDIR) setup
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
+
+$(BUILDDIR)/test_execution.cmo: test/test_execution.ml $(BUILDDIR)/test_support.cmo Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
 $(NAME): $(NATIVE_OBJ)

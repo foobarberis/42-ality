@@ -1,26 +1,7 @@
-open Parse
-
-let total = ref 0
-let failed = ref 0
-
-let fail name message =
-  incr failed;
-  Printf.eprintf "[unit] [%02d] FAIL %s\n  %s\n%!" !total name message
-
-let run name test =
-  incr total;
-  try
-    test ();
-    Printf.printf "[unit] [%02d] OK %s\n%!" !total name
-  with
-  | Failure message -> fail name message
-  | exn -> fail name (Printexc.to_string exn)
-
-let expect condition message =
-  if not condition then failwith message
-
-let expect_equal expected actual message =
-  expect (expected = actual) message
+let suite = Test_support.start "parse.ml"
+let run = Test_support.run suite
+let expect = Test_support.expect
+let expect_equal = Test_support.expect_equal
 
 let contains text part =
   let text_length = String.length text in
@@ -40,30 +21,31 @@ let expect_parse_error ?line ?reason parse =
     let _ = parse () in
     failwith "expected Parse_error, but parsing succeeded"
   with
-  | Parse_error message ->
+  | Parse.Parse_error message ->
       begin
         match line with
         | Some number ->
-            let prefix = Printf.sprintf "line %d:" number in
+            let prefix = "line " ^ string_of_int number ^ ":" in
             expect (contains message prefix)
-              (Printf.sprintf "expected %S in parse error, got %S" prefix message)
+              ("expected " ^ Test_support.quote prefix
+               ^ " in parse error, got " ^ Test_support.quote message)
         | None -> ()
       end;
       begin
         match reason with
         | Some value ->
             expect (contains message value)
-              (Printf.sprintf "expected %S in parse error, got %S" value message)
+              ("expected " ^ Test_support.quote value
+               ^ " in parse error, got " ^ Test_support.quote message)
         | None -> ()
       end
-  | exn ->
-      failwith ("expected Parse_error, got " ^ Printexc.to_string exn)
+  | _ ->
+      failwith "expected Parse_error, got another exception"
 
-let remove_if_present path =
-  if Sys.file_exists path then Sys.remove path
+let remove_if_present = Test_support.remove_if_present
 
 let with_grammar contents test =
-  let path = Filename.temp_file "ft_ality_parse_" ".gmr" in
+  let path = Test_support.temporary_path "ft_ality_parse_" ".gmr" in
   let output = open_out path in
   try
     output_string output contents;
@@ -77,19 +59,18 @@ let with_grammar contents test =
     raise error
 
 let parse contents =
-  with_grammar contents load_automaton
+  with_grammar contents Parse.load_automaton
 
 let reject ?line ?reason contents =
   with_grammar contents (fun path ->
-      expect_parse_error ?line ?reason (fun () -> load_automaton path))
+      expect_parse_error ?line ?reason
+        (fun () -> Parse.load_automaton path))
 
 let () =
-  Printf.printf "parse.ml\n%!";
-
   run "parse every resource grammar" (fun () ->
       List.iter
         (fun path ->
-          let grammar = load_automaton path in
+          let grammar = Parse.load_automaton path in
           expect (grammar.Automaton.ParsingTypes.input_map <> [])
             (path ^ " has no parsed inputs");
           expect (grammar.Automaton.ParsingTypes.combos <> [])
@@ -126,7 +107,8 @@ let () =
 
   run "reject a missing file" (fun () ->
       expect_parse_error ~reason:"failed to open grammar file"
-        (fun () -> load_automaton "test/fixtures/parse/does-not-exist.gmr"));
+        (fun () ->
+          Parse.load_automaton "test/fixtures/parse/does-not-exist.gmr"));
 
   run "reject blank and missing sections" (fun () ->
       reject ~line:1 ~reason:"expected #input" "";
@@ -162,7 +144,7 @@ let () =
       in
       let entries =
         List.mapi
-          (fun index key -> Printf.sprintf "%s;token%d" key index)
+          (fun index key -> key ^ ";token" ^ string_of_int index)
           keys
       in
       let grammar =
@@ -228,6 +210,4 @@ let () =
       reject ~line:5 ~reason:"empty token"
         "\n#input\na;A\n#combos\nA,,A;Move\n");
 
-  let ok = !total - !failed in
-  Printf.printf "SUMMARY: %d OK / %d FAIL\n%!" ok !failed;
-  if !failed <> 0 then exit 1
+  Test_support.finish suite

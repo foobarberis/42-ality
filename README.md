@@ -215,9 +215,11 @@ allows a longer move sharing its prefix to be recognized.
 
 ## Implementation notes
 
-Production code only depends on project modules and the subject's module
+The subject restrictions apply to both application code in `src/` and test
+code in `test/`. Both depend only on project modules and the subject's module
 allowlist: `Pervasives`, `List`, `String`, `Sys`, `Sdl`, `Sdlevent`, and
-`Sdlkey`. It does not use the forbidden `open` keyword or `;;` token.
+`Sdlkey`. Neither uses the forbidden `open` keyword or `;;` token. The `;;`
+text in a malformed grammar test is string data, not an OCaml token.
 
 ## Source layout
 

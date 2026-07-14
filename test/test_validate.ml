@@ -1,46 +1,25 @@
-open Validate
-
-let total = ref 0
-let failed = ref 0
-
-let fail name message =
-  incr failed;
-  Printf.eprintf "[unit] [%02d] FAIL %s\n  %s\n%!" !total name message
-
-let run name test =
-  incr total;
-  try
-    test ();
-    Printf.printf "[unit] [%02d] OK %s\n%!" !total name
-  with
-  | Failure message -> fail name message
-  | exn -> fail name (Printexc.to_string exn)
-
-let expect condition message =
-  if not condition then failwith message
-
-let expect_equal expected actual message =
-  expect (expected = actual) message
+let suite = Test_support.start "validate.ml"
+let run = Test_support.run suite
+let expect_equal = Test_support.expect_equal
 
 let expect_validation_error validate =
   try
     validate ();
     failwith "expected Validation_error, but validation succeeded"
   with
-  | Validation_error _ -> ()
-  | exn ->
-      failwith ("expected Validation_error, got " ^ Printexc.to_string exn)
+  | Validate.Validation_error _ -> ()
+  | _ ->
+      failwith "expected Validation_error, got another exception"
 
 let grammar input_map combos =
   Automaton.ParsingTypes.build_parsed_grammar
   |> Automaton.ParsingTypes.build_parsed_inputs input_map
   |> Automaton.ParsingTypes.build_parse_combos combos
 
-let remove_if_present path =
-  if Sys.file_exists path then Sys.remove path
+let remove_if_present = Test_support.remove_if_present
 
 let with_grammar contents test =
-  let path = Filename.temp_file "ft_ality_validate_" ".gmr" in
+  let path = Test_support.temporary_path "ft_ality_validate_" ".gmr" in
   let output = open_out path in
   try
     output_string output contents;
@@ -64,12 +43,10 @@ let read_file path =
     raise error
 
 let () =
-  Printf.printf "validate.ml\n%!";
-
   run "validate every resource grammar" (fun () ->
       List.iter
         (fun path ->
-          path |> Parse.load_automaton |> validate_automaton)
+          path |> Parse.load_automaton |> Validate.validate_automaton)
         [ "res/subject.gmr";
           "res/common_prefix.gmr";
           "res/overlapping_sequences.gmr";
@@ -77,54 +54,54 @@ let () =
 
   run "reject an empty input section" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton (grammar [] [(["A"], "Move")])));
+          Validate.validate_automaton (grammar [] [(["A"], "Move")])));
 
   run "reject an empty combo section" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton (grammar [("a", "A")] [])));
+          Validate.validate_automaton (grammar [("a", "A")] [])));
 
   run "reject duplicate physical keys" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton
+          Validate.validate_automaton
             (grammar
                [("a", "A"); ("a", "B")]
                [(["A"], "Move")])));
 
   run "reject duplicate input tokens" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton
+          Validate.validate_automaton
             (grammar
                [("a", "A"); ("b", "A")]
                [(["A"], "Move")])));
 
   run "reject duplicate move names" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton
+          Validate.validate_automaton
             (grammar
                [("a", "A"); ("b", "B")]
                [(["A"], "Move"); (["B"], "Move")])));
 
   run "reject undeclared combo tokens" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton
+          Validate.validate_automaton
             (grammar [("a", "A")] [(["A"; "B"], "Move")])));
 
   run "allow homonymous token sequences" (fun () ->
-      validate_automaton
+      Validate.validate_automaton
         (grammar
            [("a", "A")]
            [(["A"], "First Move"); (["A"], "Second Move")]));
 
   run "reject an exact duplicate combo entry" (fun () ->
       expect_validation_error (fun () ->
-          validate_automaton
+          Validate.validate_automaton
             (grammar
                [("a", "A")]
                [(["A"], "Move"); (["A"], "Move")])));
 
   run "preserve all subject combos" (fun () ->
       let parsed = Parse.load_automaton "res/subject.gmr" in
-      validate_automaton parsed;
+      Validate.validate_automaton parsed;
       expect_equal 5
         (List.length parsed.Automaton.ParsingTypes.combos)
         "subject combo entries were removed";
@@ -163,7 +140,9 @@ let () =
       with_grammar
         "#input\na;A\nb;A\n#combos\nA;Move\n"
         (fun grammar_path ->
-          let output_path = Filename.temp_file "ft_ality_output_" ".txt" in
+          let output_path =
+            Test_support.temporary_path "ft_ality_output_" ".txt"
+          in
           let output = open_out output_path in
           try
             expect_validation_error (fun () ->
@@ -184,7 +163,9 @@ let () =
       with_grammar
         "#input\na;A\n"
         (fun grammar_path ->
-          let output_path = Filename.temp_file "ft_ality_output_" ".txt" in
+          let output_path =
+            Test_support.temporary_path "ft_ality_output_" ".txt"
+          in
           let output = open_out output_path in
           try
             begin
@@ -206,6 +187,4 @@ let () =
             remove_if_present output_path;
             raise error));
 
-  let ok = !total - !failed in
-  Printf.printf "SUMMARY: %d OK / %d FAIL\n%!" ok !failed;
-  if !failed <> 0 then exit 1
+  Test_support.finish suite

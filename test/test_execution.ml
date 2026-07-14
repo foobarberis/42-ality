@@ -1,24 +1,7 @@
-let total = ref 0
-let failed = ref 0
-
-let fail name message =
-  incr failed;
-  Printf.eprintf "[unit] [%02d] FAIL %s\n  %s\n%!" !total name message
-
-let run name test =
-  incr total;
-  try
-    test ();
-    Printf.printf "[unit] [%02d] OK %s\n%!" !total name
-  with
-  | Failure message -> fail name message
-  | exn -> fail name (Printexc.to_string exn)
-
-let expect condition message =
-  if not condition then failwith message
-
-let expect_equal expected actual message =
-  expect (expected = actual) message
+let suite = Test_support.start "execution.ml"
+let run = Test_support.run suite
+let expect = Test_support.expect
+let expect_equal = Test_support.expect_equal
 
 let build combos =
   Automaton.AutomataBuilder.buildAutomata "test"
@@ -27,8 +10,6 @@ let build combos =
   |> Automaton.TransitionBuilder.sort_automata
 
 let () =
-  Printf.printf "execution.ml\n%!";
-
   run "initialize execution at the automaton start" (fun () ->
       let automaton = build [(["A"], "Move A")] in
       let state = Execution.initial automaton in
@@ -233,6 +214,4 @@ let () =
       expect_equal [] state.Execution.sequence
         "reset did not clear the sequence");
 
-  let ok = !total - !failed in
-  Printf.printf "SUMMARY: %d OK / %d FAIL\n%!" ok !failed;
-  if !failed <> 0 then exit 1
+  Test_support.finish suite

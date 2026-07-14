@@ -1,53 +1,12 @@
-open Training
-
-let total = ref 0
-let failed = ref 0
-
-let fail name message =
-  incr failed;
-   Printf.eprintf "[unit] [%02d] FAIL %s\n  %s\n%!" !total name message
-
-let run name f =
-  incr total;
-  try
-    f ();
-    Printf.printf "[unit] [%02d] OK %s\n%!" !total name
-  with
-  | Failure message -> fail name message
-  | exn -> fail name (Printexc.to_string exn)
-
-let string_of_finals (finals: (string * string)list) =
-  let rec aux acc = function
-    | [] -> acc
-    | (state, combo_name) :: rest ->
-      let new_acc = acc ^ Printf.sprintf "   %s is final for combo: %s\n" state combo_name in
-      aux new_acc rest
-    in aux "" finals
-
-let string_of_transitions (transition: (string * (string * string)list)list) =
-  let rec aux acc = function
-    | [] -> acc
-    | (state, transitions) :: rest ->
-      let transition_str = List.map
-          (fun (input, next_state) -> Printf.sprintf "    %s --%s--> %s" state input next_state) 
-          transitions
-        in
-        let new_acc = acc ^ String.concat "\n" transition_str ^ "\n" in
-        aux new_acc rest
-  in aux "" transition
-
-let expect condition message  = 
-  if not condition then
-    failwith message
-
-let expect_equal expected actual message =
-  expect (expected = actual) message 
+let suite = Test_support.start "training.ml"
+let run = Test_support.run suite
+let expect_equal = Test_support.expect_equal
 
 let () =
-  Printf.printf "training.ml\n%!";
-
   run "test training_01.gmr" (fun () ->
-    let automata = Training.run_training "test/fixtures/training/training_01.gmr" in
+    let automata =
+      Training.Training.run_training "test/fixtures/training/training_01.gmr"
+    in
     expect_equal [("s0", [("token2", "s4"); ("token1", "s1")]);
                   ("s1", [("token1", "s3"); ("token2", "s2")]);
                   ("s4", [("token3", "s5")])]
@@ -65,7 +24,9 @@ let () =
     );
 
   run "test training_02.gmr" (fun () ->
-    let cool = Training.run_training "test/fixtures/training/training_02.gmr" in
+    let cool =
+      Training.Training.run_training "test/fixtures/training/training_02.gmr"
+    in
     expect_equal [("s0", [("gang", "s8"); ("the", "s3"); ("cool", "s1")]);
                   ("s1", [("gang", "s7"); ("and", "s2")]);
                   ("s2", [("the", "s5")]);
@@ -90,7 +51,7 @@ let () =
     );
 
   run "return every move for a homonymous final state" (fun () ->
-    let subject = Training.run_training "res/subject.gmr" in
+    let subject = Training.Training.run_training "res/subject.gmr" in
     match Automaton.Automata.step subject subject.initial "[BP]" with
     | None -> failwith "[BP] did not reach a final state"
     | Some bp_state ->
@@ -110,7 +71,4 @@ let () =
               "[BP], [FP] did not return all moves in grammar order"
     );
 
-  let ok = !total - !failed in 
-  Printf.printf "SUMMARY: %d OK / %d FAIL\n%!" ok !failed;
-  if !failed <> 0 then
-    exit 1
+  Test_support.finish suite
