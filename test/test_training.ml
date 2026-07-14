@@ -86,7 +86,28 @@ let () =
                   "Failed to build input map correctly";
     expect_equal "s0"
                   cool.initial
-                  "Failed to set initial state correctly"; 
+                  "Failed to set initial state correctly"
+    );
+
+  run "return every move for a homonymous final state" (fun () ->
+    let subject = Training.run_training "res/subject.gmr" in
+    match Automaton.Automata.step subject subject.initial "[BP]" with
+    | None -> failwith "[BP] did not reach a final state"
+    | Some bp_state ->
+        expect_equal
+          ["Claw Slam (Freddy Krueger)";
+           "Knockdown (Sonya)";
+           "Fist of Death (Liu-Kang)"]
+          (Automaton.Automata.get_final_combos subject bp_state)
+          "[BP] did not return all moves in grammar order";
+        match Automaton.Automata.step subject bp_state "[FP]" with
+        | None -> failwith "[BP], [FP] did not reach a final state"
+        | Some bp_fp_state ->
+            expect_equal
+              ["Saibot Blast (Noob Saibot)";
+               "Active Duty (Jax)"]
+              (Automaton.Automata.get_final_combos subject bp_fp_state)
+              "[BP], [FP] did not return all moves in grammar order"
     );
 
   let ok = !total - !failed in 

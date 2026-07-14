@@ -9,7 +9,7 @@ module type automata = sig
   val step : t -> string -> input -> string option
   val find_transition : t -> string -> input -> string option
   val is_final : t -> string -> bool
-  val get_final_combo : t -> string -> string option
+  val get_final_combos : t -> string -> string list
   val get_move : t -> input -> string option
 end
 

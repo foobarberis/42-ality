@@ -39,8 +39,16 @@ module Automata : Automaton_sig.automata with type t = AutomataTypes.t and type 
   let is_final automata state =
     List.mem_assoc state automata.finals
     
-  let get_final_combo automata state =
-    List.assoc_opt state automata.finals
+  let get_final_combos automata state =
+    let rec collect combos = function
+      | [] -> List.rev combos
+      | (final_state, combo) :: rest ->
+          if final_state = state then
+            collect (combo :: combos) rest
+          else
+            collect combos rest
+    in
+    collect [] automata.finals
 
   let get_move automata input = 
     List.assoc_opt input automata.input_map
@@ -75,7 +83,7 @@ module AutomataBuilder : Automaton_sig.automataBuilder with type t = AutomataTyp
         {automata with transitions = (from_state, [ (input, to_state) ]) :: automata.transitions}
 
   let add_final state combo_name automata =
-    {automata with finals = (state, combo_name) :: automata.finals}
+    {automata with finals = automata.finals @ [(state, combo_name)]}
 end
 
 module TransitionBuilder : Automaton_sig.transitions_builder with type t = AutomataTypes.t and type input = AutomataTypes.input 

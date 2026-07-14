@@ -189,7 +189,21 @@ The execution layer keeps track of:
 - the input sequence typed so far;
 - the mapping between physical keys and grammar tokens.
 
-On each key press, the program tries to follow a transition. If the new state is final, the associated move name is displayed.
+On each mapped key press, the program uses that key's declared token to try to
+follow a transition. If the new state is final, its associated move names are
+displayed.
+
+#### Input reset semantics
+
+Recognition is non-overlapping: keys used by a recognized move are not reused
+by another move.
+
+When the token mapped from a key press cannot continue the current sequence,
+the program discards that sequence and tries that same token once from the
+start state. If it cannot start a move, the current sequence is empty.
+
+A recognized final state remains active when it has outgoing transitions. This
+allows a longer move sharing its prefix to be recognized.
 
 ## Source layout
 
@@ -197,6 +211,7 @@ On each key press, the program tries to follow a transition. If the new state is
 - `src/validate.ml` — grammar validation
 - `src/automaton.ml` — automaton representation and training
 - `src/training.ml` — training orchestration
+- `src/execution.ml` — pure input-sequence recognition state
 - `src/ft_ality.ml` — CLI entry point
 - `res/subject.gmr` — grammar matching the subject example
 - `res/common_prefix.gmr` — common-prefix grammar with three final states

@@ -7,13 +7,15 @@ BUILDDIR = _build
 UNIT = $(BUILDDIR)/test_unit.byte
 UNIT_OBJ = $(BUILDDIR)/test_parse.cmo \
 		   $(BUILDDIR)/test_validate.cmo \
-			$(BUILDDIR)/test_training.cmo
+		   $(BUILDDIR)/test_training.cmo \
+		   $(BUILDDIR)/test_execution.cmo
 
-MODULES = automaton_sig automaton parse validate training ft_ality
+MODULES = automaton_sig automaton parse validate training execution ft_ality
 SRC_ML = $(addprefix $(SRCDIR)/,$(addsuffix .ml,$(MODULES)))
 TEST_ML = test/test_parse.ml \
 		  test/test_validate.ml \
-		  test/test_training.ml
+		  test/test_training.ml \
+		  test/test_execution.ml
 
 NATIVE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmx,$(MODULES)))
 BYTE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmo,$(MODULES)))
@@ -73,13 +75,16 @@ $(BUILDDIR)/test_validate.cmo: test/test_validate.ml Makefile | $(BUILDDIR) setu
 $(BUILDDIR)/test_training.cmo: test/test_training.ml Makefile | $(BUILDDIR) setup
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
 
+$(BUILDDIR)/test_execution.cmo: test/test_execution.ml Makefile | $(BUILDDIR) setup
+	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
+
 $(NAME): $(NATIVE_OBJ)
 	$(RUN) ocamlfind ocamlopt $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
 
 $(BYTE): $(BYTE_OBJ)
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
 
-$(UNIT): $(BUILDDIR)/automaton.cmo  $(BUILDDIR)/parse.cmo  $(BUILDDIR)/validate.cmo $(BUILDDIR)/training.cmo $(UNIT_OBJ)
+$(UNIT): $(BUILDDIR)/automaton.cmo $(BUILDDIR)/parse.cmo $(BUILDDIR)/validate.cmo $(BUILDDIR)/training.cmo $(BUILDDIR)/execution.cmo $(UNIT_OBJ)
 	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
 
 unit ut: $(UNIT)
