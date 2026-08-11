@@ -1,125 +1,88 @@
-module AutomataTypes = struct
-  type input = string
-  type t = {
-    name : string;
-    input_map : (input * string) list;
-    initial : string;
-    finals : (string * string) list;
-    transitions : (string * (input * string) list) list;
-    }
-end
-  
-module ParsingTypes = struct 
-  type parsed_grammar = {
-  input_map : (AutomataTypes.input * string) list;
-  combos : (AutomataTypes.input list * string) list;
-  }
+type t = {
+  key_map : (string * string) list;
+  initial : string;
+  finals : (string * string) list;
+  transitions : (string * (string * string) list) list;
+}
 
-  let build_parsed_grammar =
-    {input_map = []; combos = []}
-  
-  let build_parsed_inputs _input_map gmr = 
-    {gmr with input_map = _input_map}
+(* Look up the transition for [token] from [state]. *)
+let find_transition transitions state token =
+  match List.assoc_opt state transitions with
+  | Some outgoing -> List.assoc_opt token outgoing
+  | None -> None
 
-  let build_parse_combos _combos gmr= 
-    {gmr with combos = _combos}
-end
+let follow automaton state token =
+  find_transition automaton.transitions state token
 
-module Automata : Automaton_sig.automata with type t = AutomataTypes.t and type input = AutomataTypes.input = struct
-  include AutomataTypes
-  let find_transition automata state input =
-    match List.assoc_opt state automata.transitions with
-      | Some transitions -> List.assoc_opt input transitions
-      | None -> None
+(* List the moves for [state] in declaration order. *)
+let recognized automaton state =
+  let rec collect moves = function
+    | [] -> List.rev moves
+    | (final_state, move) :: rest ->
+        if final_state = state then
+          collect (move :: moves) rest
+        else
+          collect moves rest
+  in
+  collect [] automaton.finals
 
-  let step automata state input = 
-    find_transition automata state input
-    (* TODO complete step implementation here *)
+let resolve_key automaton key =
+  List.assoc_opt key automaton.key_map
 
-  let is_final automata state =
-    List.mem_assoc state automata.finals
-    
-  let get_final_combo automata state =
-    List.assoc_opt state automata.finals
+let has_outgoing automaton state =
+  match List.assoc_opt state automaton.transitions with
+  | Some outgoing -> outgoing <> []
+  | None -> false
 
-  let get_move automata input = 
-    List.assoc_opt input automata.input_map
-end
+(* Add a [token] transition from [source] to [target]. *)
+let rec add_transition source token target = function
+  | [] -> [(source, [(token, target)])]
+  | (state, outgoing) :: rest ->
+      if state = source then
+        (state, (token, target) :: outgoing) :: rest
+      else
+        (state, outgoing) :: add_transition source token target rest
 
-module AutomataBuilder : Automaton_sig.automataBuilder with type t = AutomataTypes.t and type input = AutomataTypes.input = struct
-  include AutomataTypes
-  let buildAutomata automata_name =
-    {name = automata_name; input_map = []; initial = "s0"; finals = []; transitions = []}
+(* Build a trie so combos with the same prefix share states. *)
+let train key_map combos =
+  let initial = "s0" in
+  (* Reuse existing transitions and number each new state from [counter]. *)
+  let rec add_tokens transitions counter state = function
+    | [] -> transitions, counter, state
+    | token :: rest ->
+        begin
+          match find_transition transitions state token with
+          | Some target ->
+              add_tokens transitions counter target rest
+          | None ->
+              let target = "s" ^ string_of_int counter in
+              let updated =
+                add_transition state token target transitions
+              in
+              add_tokens ((target, []) :: updated) (counter + 1)
+                target rest
+        end
+  in
+  (* Add each combo and mark the state where it ends. *)
+  let rec add_combos transitions finals counter = function
+    | [] ->
+        {
+          key_map;
+          initial;
+          transitions =
+            List.rev transitions
+            |> List.filter (fun (_, outgoing) -> outgoing <> []);
+          finals = List.rev finals;
+        }
+    | (tokens, move) :: rest ->
+        let updated, next_counter, final_state =
+          add_tokens transitions counter initial tokens
+        in
+        add_combos updated ((final_state, move) :: finals)
+          next_counter rest
+  in
+  add_combos [initial, []] [] 1 combos
 
-  let buildInput _input_map automata =
-    {automata with input_map = _input_map}
-  
-  let buildInitial init_state automata =
-    {automata with initial = init_state}
-  
-  let buildFinals _finals automata =
-    {automata with finals = _finals}
-  
-  let buildTransitions _transitions automata =
-    {automata with transitions = _transitions}
-  
-  let add_input input move_name automata =
-    {automata with input_map = (input, move_name) :: automata.input_map}
-
-  let add_transition from_state input to_state automata =
-    match List.assoc_opt from_state automata.transitions with
-      | Some transitions ->
-        let new_transitions = (input, to_state) :: transitions in
-          {automata with transitions = (from_state, new_transitions) :: List.remove_assoc from_state automata.transitions}
-      | None ->
-        {automata with transitions = (from_state, [ (input, to_state) ]) :: automata.transitions}
-
-  let add_final state combo_name automata =
-    {automata with finals = (state, combo_name) :: automata.finals}
-end
-
-module TransitionBuilder : Automaton_sig.transitions_builder with type t = AutomataTypes.t and type input = AutomataTypes.input 
-= struct 
-  include AutomataBuilder
-
-  type transition_builder = {
-    automata: AutomataTypes.t;
-    state_counter: int;
-  }
-
-  let inc_state counter =
-    let s = "s" ^ string_of_int counter in
-    (s, counter + 1)
-
-  let trainingAutomata combos automata =
-    let builder = {automata; state_counter = 1} in
-      let rec process builder state inputs =
-        match inputs with
-        | [] -> (builder, state)
-        | inp :: rest ->
-          match Automata.find_transition builder.automata state inp with 
-            | Some existing_state ->
-              process builder existing_state rest
-            | None -> 
-               let next_state, new_counter = inc_state builder.state_counter in 
-               let t = AutomataBuilder.add_transition state inp next_state builder.automata in
-                process {automata = t; state_counter = new_counter} next_state rest
-      in let rec aux builder = function   
-        | [] -> builder.automata  
-        | (inputs, combo_name) :: rest ->
-            let start_state = builder.automata.AutomataTypes.initial in 
-            let build, final_state = process builder start_state inputs  in
-            let t = AutomataBuilder.add_final final_state combo_name build.automata in
-            aux {build with automata = t} rest
-        in aux builder combos
-
-    let compare_state s1 s2 =
-      let num1 = int_of_string (String.sub s1 1 (String.length s1 -1)) in
-      let num2 = int_of_string (String.sub s2 1 (String.length s2 -1)) in
-      compare num1 num2
-
-    let sort_automata automata = 
-      let sorted_transitions = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes.transitions in
-      let sorted_finals = List.sort (fun (s1, _) (s2, _) -> compare_state s1 s2) automata.AutomataTypes  .finals in
-      AutomataBuilder.buildTransitions sorted_transitions (AutomataBuilder.buildFinals sorted_finals automata)
-end
+(* Train an automaton from validated mappings and combos. *)
+let create key_map combos =
+  train key_map combos
