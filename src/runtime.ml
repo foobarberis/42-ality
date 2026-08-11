@@ -8,10 +8,13 @@ type event =
 let print_sequence output sequence =
   output_string output (String.concat ", " sequence ^ "\n")
 
+let red = "\027[38;2;230;0;0m"
+let reset = "\027[0m"
+
 let rec print_moves output = function
   | [] -> ()
   | move :: rest ->
-      output_string output (move ^ " !!\n");
+      output_string output (red ^ move ^ " !!" ^ reset ^ "\n");
       print_moves output rest
 
 let print_result output sequence moves =

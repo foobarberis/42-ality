@@ -91,10 +91,10 @@ if ! printf 'qw\004' | script -qec "$bin res/common_prefix.gmr" /dev/null \
   >"$tmp/common-prefix.out" 2>&1; then
   fail "common-prefix grammar did not accept terminal input"
 fi
-if ! grep -q "Move B !!" "$tmp/common-prefix.out"; then
+if ! grep -Fq "$(printf '\033[38;2;230;0;0m')Move B !!$(printf '\033[0m')" "$tmp/common-prefix.out"; then
   fail "common-prefix continuation did not recognize the longer move"
 fi
-if grep -q "Move A !!" "$tmp/common-prefix.out"; then
+if grep -Fq "$(printf '\033[38;2;230;0;0m')Move A !!$(printf '\033[0m')" "$tmp/common-prefix.out"; then
   fail "common-prefix continuation printed the shorter move"
 fi
 ok "common-prefix continuation selects only the longer move"
@@ -104,7 +104,7 @@ if ! { printf q; sleep 0.5; printf '\004'; } | \
   >"$tmp/common-prefix-timeout.out" 2>&1; then
   fail "common-prefix grammar did not accept delayed terminal input"
 fi
-if ! grep -q "Move A !!" "$tmp/common-prefix-timeout.out"; then
+if ! grep -Fq "$(printf '\033[38;2;230;0;0m')Move A !!$(printf '\033[0m')" "$tmp/common-prefix-timeout.out"; then
   fail "common-prefix timeout did not commit the shorter move"
 fi
 ok "common-prefix timeout commits the shorter move"
