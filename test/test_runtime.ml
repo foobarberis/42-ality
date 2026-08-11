@@ -80,7 +80,7 @@ let () =
           [Runtime.Key "a"; Runtime.Timeout; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nA, B\nMove AB !!\n" output
+      expect_equal "A, B\nMove AB !!\n" output
         "timeout reset an unrecognized partial sequence");
 
   run "commit a pending move before an invalid continuation" (fun () ->
@@ -118,7 +118,7 @@ let () =
         run_events automaton
           [Runtime.Key "a"; Runtime.Key "c"; Runtime.Quit]
       in
-      expect_equal "A\nC\nMove C !!\n" output
+      expect_equal "C\nMove C !!\n" output
         "failed continuation did not restart from its current token");
 
   run "commit a pending move on a known but unmapped key" (fun () ->
@@ -157,7 +157,7 @@ let () =
           [Runtime.Key "a"; Runtime.Ignored; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nA, B\nMove AB !!\n" output
+      expect_equal "A, B\nMove AB !!\n" output
         "an ignored event reset the sequence");
 
   run "recognize repeated moves" (fun () ->
@@ -171,8 +171,8 @@ let () =
            Runtime.Key "a"; Runtime.Key "b"; Runtime.Quit]
       in
       expect_equal
-        ("A\nA, B\nMove AB !!\n"
-         ^ "A\nA, B\nMove AB !!\n")
+        ("A, B\nMove AB !!\n"
+         ^ "A, B\nMove AB !!\n")
         output
         "a repeated move was not recognized");
 

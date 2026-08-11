@@ -36,9 +36,10 @@ let print_pending output automaton state =
 (* Print a completed move now unless it could become a longer combo. *)
 let print_or_delay output automaton state token =
   let sequence = Execution.sequence state in
+  let recognized = moves automaton state in
   let displayed = if sequence = [] then [token] else sequence in
-  if not (is_pending automaton state) then
-    print_result output displayed (moves automaton state)
+  if sequence = [] || (recognized <> [] && not (is_pending automaton state)) then
+    print_result output displayed recognized
 
 (* Handle events until quit. A timeout, invalid input, or broken sequence
    settles any pending move. *)
