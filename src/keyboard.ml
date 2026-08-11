@@ -32,8 +32,7 @@ let remove_state_file () =
 let restore_saved_mode () =
   match !state_file with
   | Some path ->
-      if Sys.command ("stty $(cat " ^ path ^ ")") <> 0 then
-        prerr_endline "Error: failed to restore terminal settings"
+      ignore (Sys.command ("stty $(cat " ^ path ^ ") 2>/dev/null"))
   | None -> ()
 
 (* Restore the terminal once, then remove the saved mode. *)
