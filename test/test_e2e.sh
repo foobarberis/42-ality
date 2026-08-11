@@ -4,6 +4,17 @@ set -u
 bin=$1
 tmp=_build/e2e.$$
 pid=
+passed=0
+failed=0
+
+summary() {
+  echo "SUMMARY: $passed OK / $failed FAIL"
+}
+
+ok() {
+  passed=$((passed + 1))
+  echo "[e2e] OK: $1"
+}
 
 cleanup() {
   if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
@@ -14,7 +25,9 @@ cleanup() {
 }
 
 fail() {
+  failed=$((failed + 1))
   echo "[e2e] FAIL: $1" >&2
+  summary >&2
   exit 1
 }
 
@@ -28,7 +41,7 @@ check_failure() {
   if ! grep -q "$expected" "$tmp/output"; then
     fail "$name did not report $expected"
   fi
-  echo "[e2e] OK: $name"
+  ok "$name"
 }
 
 trap cleanup EXIT HUP INT TERM
@@ -80,7 +93,7 @@ fi
 if grep -q "Move A !!" "$tmp/common-prefix.out"; then
   fail "common-prefix continuation printed the shorter move"
 fi
-echo "[e2e] OK: common-prefix continuation selects only the longer move"
+ok "common-prefix continuation selects only the longer move"
 
 if ! { printf q; sleep 0.5; printf '\004'; } | \
   script -qec "$bin res/common_prefix.gmr" /dev/null \
@@ -90,17 +103,18 @@ fi
 if ! grep -q "Move A !!" "$tmp/common-prefix-timeout.out"; then
   fail "common-prefix timeout did not commit the shorter move"
 fi
-echo "[e2e] OK: common-prefix timeout commits the shorter move"
+ok "common-prefix timeout commits the shorter move"
 
 normal_command="before=\$(stty -g); $bin res/common_prefix.gmr; status=\$?; after=\$(stty -g); [ \"\$before\" = \"\$after\" ] && exit \$status; exit 1"
 if ! printf '\004' | script -qec "$normal_command" /dev/null \
   >"$tmp/restore-normal.out" 2>&1; then
   fail "terminal settings were not restored after normal quit"
 fi
-echo "[e2e] OK: terminal settings are restored after normal quit"
+ok "terminal settings are restored after normal quit"
 
 signal_command="before=\$(stty -g); $bin res/common_prefix.gmr < /dev/tty & child=\$!; sleep 0.2; kill -TERM \$child; wait \$child; status=\$?; after=\$(stty -g); [ \"\$before\" = \"\$after\" ] && [ \$status -eq 143 ]"
 if ! script -qec "$signal_command" /dev/null >"$tmp/restore-signal.out" 2>&1; then
   fail "terminal settings were not restored after interruption"
 fi
-echo "[e2e] OK: terminal settings are restored after interruption"
+ok "terminal settings are restored after interruption"
+summary
