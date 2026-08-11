@@ -84,5 +84,5 @@ let finish suite =
   let ok = !(suite.total) - !(suite.failed) in
   write stdout
     ("SUMMARY: " ^ string_of_int ok ^ " OK / "
-     ^ string_of_int !(suite.failed) ^ " FAIL\n");
+     ^ string_of_int !(suite.failed) ^ " FAIL\n\n");
   if !(suite.failed) <> 0 then exit 1

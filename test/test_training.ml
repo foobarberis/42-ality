@@ -3,6 +3,16 @@ let run = Test_support.run suite
 let expect = Test_support.expect
 let expect_equal = Test_support.expect_equal
 
+let train path =
+  let output = open_out "/dev/null" in
+  try
+    let automaton = Training.run_training ~output path in
+    close_out output;
+    automaton
+  with error ->
+    close_out_noerr output;
+    raise error
+
 let follow automaton state token =
   match Automaton.follow automaton state token with
   | Some next -> next
@@ -18,9 +28,7 @@ let expect_move automaton tokens move =
 
 let () =
   run "train the first fixture by behavior" (fun () ->
-      let automaton =
-        Training.run_training "test/fixtures/training/training_01.gmr"
-      in
+      let automaton = train "test/fixtures/training/training_01.gmr" in
       expect (automaton.Automaton.initial <> "")
         "automaton did not have an initial state";
       expect (automaton.Automaton.transitions <> [])
@@ -41,9 +49,7 @@ let () =
       expect_move automaton ["token2"; "token3"] "combo_name3");
 
   run "train the second fixture by behavior" (fun () ->
-      let automaton =
-        Training.run_training "test/fixtures/training/training_02.gmr"
-      in
+      let automaton = train "test/fixtures/training/training_02.gmr" in
       expect_equal (Some "cool")
         (Automaton.resolve_key automaton "a")
         "key a was not resolved";
@@ -67,9 +73,7 @@ let () =
       expect_move automaton ["gang"; "cool"] "gang_cool");
 
   run "share states between prefix moves" (fun () ->
-      let automaton =
-        Training.run_training "test/fixtures/training/training_02.gmr"
-      in
+      let automaton = train "test/fixtures/training/training_02.gmr" in
       let cool_state = follow_sequence automaton ["cool"] in
       let cool_and_state = follow automaton cool_state "and" in
       expect_equal ["cool_and"]
@@ -84,7 +88,7 @@ let () =
         "the longer shared-prefix move was not recognized");
 
   run "return every move for a homonymous final state" (fun () ->
-      let automaton = Training.run_training "res/subject.gmr" in
+      let automaton = train "res/subject.gmr" in
       let bp_state = follow automaton automaton.Automaton.initial "[BP]" in
       expect_equal
         ["Claw Slam (Freddy Krueger)";
