@@ -1,49 +1,36 @@
 exception Validation_error of string
 
 let ensure condition message =
-  if not condition then
-    raise (Validation_error message)
+  if not condition then raise (Validation_error message)
 
-let rec has_duplicates xs =
-  match xs with
+(* Check whether a value appears more than once. *)
+let rec has_duplicates values =
+  match values with
   | [] | [_] -> false
-  | x :: rest -> List.mem x rest || has_duplicates rest
+  | value :: rest -> List.mem value rest || has_duplicates rest
 
-let rec input_exists (input: string) (input_map: (string * string) list) =
-  match input_map with
-  | [] -> false
-  | (_, token) :: rest -> token = input || input_exists input rest
+let input_exists token key_map =
+  List.exists (fun (_, declared_token) -> declared_token = token) key_map
 
-let validate_input (input_map: (string * string) list) =
-  let inputs = List.map fst input_map in
-  ensure (not (has_duplicates inputs)) "Duplicate inputs found in input_map"
+(* Require at least one input and reject duplicate physical keys. *)
+let validate_input key_map =
+  ensure (key_map <> []) "#input must contain at least one mapping";
+  let keys = List.map fst key_map in
+  ensure (not (has_duplicates keys)) "duplicate physical key in #input"
 
-let validate_combos_name (combos: (string list * string)list) =
-  let combo_names = List.map snd combos in
-  ensure (not (has_duplicates combo_names)) "Duplicate combo names found in combos"
+(* Require combos to use tokens declared in #input. *)
+let validate_combos combos key_map =
+  ensure (combos <> []) "#combos must contain at least one combo";
+  List.iter
+    (fun (tokens, _) ->
+      List.iter
+        (fun token ->
+          ensure (input_exists token key_map)
+            ("combo token '" ^ token ^ "' is not declared in #input"))
+        tokens)
+    combos
 
-let validate_combos_inputs_unique (combos: (string list * string)list) =
-  let pattern = List.map fst combos in
-   ensure (not (has_duplicates pattern)) "Duplicate input patterns found in combos"
-
-let validate_combos_inputs (combos: (string list * string) list) (input_map: (string * string) list) =
-  let rec aux combos =
-    match combos with
-    | [] -> ()
-    | (inputs, _) :: rest ->
-      List.iter (fun input ->
-        ensure (input_exists input input_map) ("Input '" ^ input ^ "' in combos does not exist in input_map")
-      ) inputs;
-      aux rest
-  in
-  aux combos
-
-
-let validate_automaton (parsed: Automaton.ParsingTypes.parsed_grammar): unit = 
-  try
-    validate_input parsed.input_map;
-    validate_combos_name parsed.combos;
-    validate_combos_inputs parsed.combos parsed.input_map;
-    validate_combos_inputs_unique parsed.combos;
-  with Validation_error message ->
-    failwith message
+(* Check rules that span multiple grammar entries. *)
+let validate_automaton parsed =
+  validate_input parsed.Parse.key_map;
+  validate_combos parsed.Parse.combos parsed.Parse.key_map

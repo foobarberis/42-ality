@@ -1,93 +1,102 @@
-open Training
+let suite = Test_support.start "training.ml"
+let run = Test_support.run suite
+let expect = Test_support.expect
+let expect_equal = Test_support.expect_equal
 
-let total = ref 0
-let failed = ref 0
+let follow automaton state token =
+  match Automaton.follow automaton state token with
+  | Some next -> next
+  | None -> failwith ("missing transition for " ^ token)
 
-let fail name message =
-  incr failed;
-   Printf.eprintf "[unit] [%02d] FAIL %s\n  %s\n%!" !total name message
+let follow_sequence automaton tokens =
+  List.fold_left (follow automaton) automaton.Automaton.initial tokens
 
-let run name f =
-  incr total;
-  try
-    f ();
-    Printf.printf "[unit] [%02d] OK %s\n%!" !total name
-  with
-  | Failure message -> fail name message
-  | exn -> fail name (Printexc.to_string exn)
-
-let string_of_finals (finals: (string * string)list) =
-  let rec aux acc = function
-    | [] -> acc
-    | (state, combo_name) :: rest ->
-      let new_acc = acc ^ Printf.sprintf "   %s is final for combo: %s\n" state combo_name in
-      aux new_acc rest
-    in aux "" finals
-
-let string_of_transitions (transition: (string * (string * string)list)list) =
-  let rec aux acc = function
-    | [] -> acc
-    | (state, transitions) :: rest ->
-      let transition_str = List.map
-          (fun (input, next_state) -> Printf.sprintf "    %s --%s--> %s" state input next_state) 
-          transitions
-        in
-        let new_acc = acc ^ String.concat "\n" transition_str ^ "\n" in
-        aux new_acc rest
-  in aux "" transition
-
-let expect condition message  = 
-  if not condition then
-    failwith message
-
-let expect_equal expected actual message =
-  expect (expected = actual) message 
+let expect_move automaton tokens move =
+  let state = follow_sequence automaton tokens in
+  expect_equal [move] (Automaton.recognized automaton state)
+    (String.concat ", " tokens ^ " did not recognize " ^ move)
 
 let () =
-  Printf.printf "training.ml\n%!";
+  run "train the first fixture by behavior" (fun () ->
+      let automaton =
+        Training.run_training "test/fixtures/training/training_01.gmr"
+      in
+      expect (automaton.Automaton.initial <> "")
+        "automaton did not have an initial state";
+      expect (automaton.Automaton.transitions <> [])
+        "automaton did not have transitions";
+      expect (automaton.Automaton.finals <> [])
+        "automaton did not have final states";
+      expect_equal (Some "token1")
+        (Automaton.resolve_key automaton "1")
+        "key 1 was not resolved";
+      expect_equal (Some "token2")
+        (Automaton.resolve_key automaton "2")
+        "key 2 was not resolved";
+      expect_equal (Some "token3")
+        (Automaton.resolve_key automaton "3")
+        "key 3 was not resolved";
+      expect_move automaton ["token1"; "token2"] "combo_name1";
+      expect_move automaton ["token1"; "token1"] "combo_name2";
+      expect_move automaton ["token2"; "token3"] "combo_name3");
 
-  run "test training_01.gmr" (fun () ->
-    let automata = Training.run_training "test/fixtures/training/training_01.gmr" in
-    expect_equal [("s0", [("token2", "s4"); ("token1", "s1")]);
-                  ("s1", [("token1", "s3"); ("token2", "s2")]);
-                  ("s4", [("token3", "s5")])]
-                automata.transitions
-                "Failed to build transitions correctly";
-    expect_equal [("s2", "combo_name1"); ("s3", "combo_name2"); ("s5", "combo_name3")]
-                automata.finals
-                "Failed to build finals correctly";
-	  expect_equal [("key1", "token1"); ("key2", "token2"); ("key3", "token3")]
-				        automata.input_map
-				        "Failed to build input map correctly";
-	  expect_equal "s0" 
-                automata.initial
-				        "Failed to set initial state correctly"
-    );
+  run "train the second fixture by behavior" (fun () ->
+      let automaton =
+        Training.run_training "test/fixtures/training/training_02.gmr"
+      in
+      expect_equal (Some "cool")
+        (Automaton.resolve_key automaton "a")
+        "key a was not resolved";
+      expect_equal (Some "and")
+        (Automaton.resolve_key automaton "b")
+        "key b was not resolved";
+      expect_equal (Some "the")
+        (Automaton.resolve_key automaton "c")
+        "key c was not resolved";
+      expect_equal (Some "gang")
+        (Automaton.resolve_key automaton "d")
+        "key d was not resolved";
+      expect_move automaton ["cool"; "and"] "cool_and";
+      expect_move automaton ["the"; "gang"] "the_gang";
+      expect_move automaton ["cool"; "and"; "the"; "gang"]
+        "cool_and_the_gang";
+      expect_move automaton ["cool"; "gang"] "cool_gang";
+      expect_move automaton ["gang"; "and"] "gang_and";
+      expect_move automaton ["the"; "cool"] "the_cool";
+      expect_move automaton ["the"; "cool"; "gang"] "the_cool_gang";
+      expect_move automaton ["gang"; "cool"] "gang_cool");
 
-  run "test training_02.gmr" (fun () ->
-    let cool = Training.run_training "test/fixtures/training/training_02.gmr" in
-    expect_equal [("s0", [("gang", "s8"); ("the", "s3"); ("cool", "s1")]);
-                  ("s1", [("gang", "s7"); ("and", "s2")]);
-                  ("s2", [("the", "s5")]);
-                  ("s3", [("cool", "s10"); ("gang", "s4")]);
-                  ("s5", [("gang", "s6")]);
-                  ("s8", [("cool", "s12"); ("and", "s9")]);
-                  ("s10", [("gang", "s11")])]
-                  cool.transitions
-                  "Failed to build transitions correctly";
-    expect_equal       ("s7", "cool_gang"); ("s9", "gang_and"); ("s10", "the_cool");
-                  ("s11", "the_cool_gang"); ("s12", "gang_cool")]
-                  cool.finals
-                  "Failed to build finals correctly";
-    expect_equal [("a", "cool"); ("b", "and"); ("c", "the"); ("d", "gang")]
-                  cool.input_map
-                  "Failed to build input map correctly";
-    expect_equal "s0"
-                  cool.initial
-                  "Failed to set initial state correctly"; 
-    );
+  run "share states between prefix moves" (fun () ->
+      let automaton =
+        Training.run_training "test/fixtures/training/training_02.gmr"
+      in
+      let cool_state = follow_sequence automaton ["cool"] in
+      let cool_and_state = follow automaton cool_state "and" in
+      expect_equal ["cool_and"]
+        (Automaton.recognized automaton cool_and_state)
+        "the shorter shared-prefix move was not recognized";
+      let cool_and_the_state = follow automaton cool_and_state "the" in
+      let cool_and_the_gang_state =
+        follow automaton cool_and_the_state "gang"
+      in
+      expect_equal ["cool_and_the_gang"]
+        (Automaton.recognized automaton cool_and_the_gang_state)
+        "the longer shared-prefix move was not recognized");
 
-  let ok = !total - !failed in 
-  Printf.printf "SUMMARY: %d OK / %d FAIL\n%!" ok !failed;
-  if !failed <> 0 then
-    exit 1
+  run "return every move for a homonymous final state" (fun () ->
+      let automaton = Training.run_training "res/subject.gmr" in
+      let bp_state = follow automaton automaton.Automaton.initial "[BP]" in
+      expect_equal
+        ["Claw Slam (Freddy Krueger)";
+         "Knockdown (Sonya)";
+         "Fist of Death (Liu-Kang)"]
+        (Automaton.recognized automaton bp_state)
+        "[BP] did not return all moves in grammar order";
+      let bp_fp_state = follow automaton bp_state "[FP]" in
+      expect_equal
+        ["Saibot Blast (Noob Saibot)";
+         "Active Duty (Jax)"]
+        (Automaton.recognized automaton bp_fp_state)
+        "[BP], [FP] did not return all moves in grammar order");
+
+  Test_support.finish suite

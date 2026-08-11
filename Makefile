@@ -1,105 +1,52 @@
 .DEFAULT_GOAL := all
 
 NAME = ft_ality
-BYTE = $(NAME).byte
-SRCDIR = src
 BUILDDIR = _build
-UNIT = $(BUILDDIR)/test_unit.byte
-UNIT_OBJ = $(BUILDDIR)/test_parse.cmo \
-		   $(BUILDDIR)/test_validate.cmo \
-			$(BUILDDIR)/test_training.cmo
+UNIT = $(BUILDDIR)/test_unit
+MODULES = automaton parse validate training execution runtime keyboard ft_ality
+TEST_MODULES = test_support test_parse test_validate test_training test_execution test_runtime test_keyboard
+SRC = $(addprefix src/,$(addsuffix .ml,$(MODULES)))
+TEST_SRC = $(addprefix test/,$(addsuffix .ml,$(TEST_MODULES)))
+OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmx,$(MODULES)))
+UNIT_OBJ = $(filter-out $(BUILDDIR)/ft_ality.cmx,$(OBJ)) \
+	$(addprefix $(BUILDDIR)/,$(addsuffix .cmx,$(TEST_MODULES)))
 
-MODULES = automaton_sig automaton parse validate training ft_ality
-SRC_ML = $(addprefix $(SRCDIR)/,$(addsuffix .ml,$(MODULES)))
-TEST_ML = test/test_parse.ml \
-		  test/test_validate.ml \
-		  test/test_training.ml
-
-NATIVE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmx,$(MODULES)))
-BYTE_OBJ = $(addprefix $(BUILDDIR)/,$(addsuffix .cmo,$(MODULES)))
-DEPFILE = $(BUILDDIR)/depend.mk
-
-SWITCH = .
-OCAML_VERSION = 5.2.1
-FIND_PACKAGES =
-OPAM_PACKAGES =
-
-RUN = opam exec --switch=$(SWITCH) --
-PKG =
-OCAMLFLAGS = -g -I $(BUILDDIR)
-DEPFLAGS = -I $(SRCDIR)
-
-ifneq ($(filter clean fclean distclean setup,$(MAKECMDGOALS)),)
-SKIP_DEPS = 1
-endif
-
-ifneq ($(SKIP_DEPS),1)
--include $(DEPFILE)
-endif
+OCAMLOPT = ocamlopt
+# Enable all warnings except 40, 42, and 70; find compiled module interfaces in _build.
+FLAGS = -I $(BUILDDIR)
 
 all: $(NAME)
 
-byte: $(BYTE)
-
-setup:
-	@command -v opam >/dev/null 2>&1 || { echo "Error: opam is required"; exit 1; }
-	@opam init --disable-sandboxing --bare -y >/dev/null 2>&1 || true
-	@if [ ! -d _opam ]; then opam switch create $(SWITCH) ocaml-base-compiler.$(OCAML_VERSION) -y; fi
-	@opam install --switch=$(SWITCH) -y ocamlfind $(OPAM_PACKAGES)
-
 $(BUILDDIR):
-	@mkdir -p $(BUILDDIR)
+	@mkdir -p $@
 
-$(DEPFILE): $(SRC_ML) Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamldep $(PKG) $(DEPFLAGS) $(SRC_ML) | \
-		sed \
-			-e 's#^$(SRCDIR)/\([^ ]*\)\.cmo:#$(BUILDDIR)/\1.cmo:#' \
-			-e 's#^$(SRCDIR)/\([^ ]*\)\.cmx:#$(BUILDDIR)/\1.cmx:#' \
-			-e 's#$(SRCDIR)/\([^ ]*\)\.cmo#$(BUILDDIR)/\1.cmo#g' \
-			-e 's#$(SRCDIR)/\([^ ]*\)\.cmx#$(BUILDDIR)/\1.cmx#g' > $@
+$(NAME): $(SRC) Makefile | $(BUILDDIR)
+	@set -e; \
+	for file in $(SRC); do \
+		name=$${file##*/}; \
+		$(OCAMLOPT) $(FLAGS) -c $$file -o $(BUILDDIR)/$${name%.ml}.cmx; \
+	done
+	$(OCAMLOPT) $(FLAGS) $(OBJ) -o $@
 
-$(BUILDDIR)/%.cmx: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamlopt $(OCAMLFLAGS) $(PKG) -c $< -o $@
+$(UNIT): $(NAME) $(TEST_SRC) Makefile
+	@set -e; \
+	for file in $(TEST_SRC); do \
+		name=$${file##*/}; \
+		$(OCAMLOPT) $(FLAGS) -c $$file -o $(BUILDDIR)/$${name%.ml}.cmx; \
+	done
+	$(OCAMLOPT) $(FLAGS) $(UNIT_OBJ) -o $@
 
-$(BUILDDIR)/%.cmo: $(SRCDIR)/%.ml Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
-
-$(BUILDDIR)/test_parse.cmo: test/test_parse.ml Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
-
-$(BUILDDIR)/test_validate.cmo: test/test_validate.ml Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
-
-$(BUILDDIR)/test_training.cmo: test/test_training.ml Makefile | $(BUILDDIR) setup
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -c $< -o $@
-
-$(NAME): $(NATIVE_OBJ)
-	$(RUN) ocamlfind ocamlopt $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
-
-$(BYTE): $(BYTE_OBJ)
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
-
-$(UNIT): $(BUILDDIR)/automaton.cmo  $(BUILDDIR)/parse.cmo  $(BUILDDIR)/validate.cmo $(BUILDDIR)/training.cmo $(UNIT_OBJ)
-	$(RUN) ocamlfind ocamlc $(OCAMLFLAGS) $(PKG) -linkpkg $^ -o $@
-
-unit ut: $(UNIT)
-	@$(RUN) ./$(UNIT)
-# 	@echo "No unit tests yet"
-
-e2e:
-	@echo "No end-to-end tests yet"
-
-test: unit e2e
+test: $(NAME) $(UNIT)
+	@./$(UNIT)
+	@sh test/test_e2e.sh ./$(NAME)
 
 clean:
 	@rm -rf $(BUILDDIR)
 
 fclean: clean
-	@rm -f $(NAME) $(BYTE)
+	@rm -f $(NAME)
 
-re: fclean all
+re: fclean
+	@$(MAKE) all
 
-distclean: fclean
-	@rm -rf _opam
-
-.PHONY: all byte setup unit ut e2e test clean fclean re distclean
+.PHONY: all test clean fclean re
