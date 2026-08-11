@@ -45,6 +45,7 @@ clean:
 
 fclean: clean
 	@rm -f $(NAME)
+	@rm -rf _opam/
 
 re: fclean
 	@$(MAKE) all
