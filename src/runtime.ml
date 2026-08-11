@@ -8,10 +8,13 @@ type event =
 let print_sequence output sequence =
   output_string output (String.concat ", " sequence ^ "\n")
 
+let red = "\027[38;2;230;0;0m"
+let reset = "\027[0m"
+
 let rec print_moves output = function
   | [] -> ()
   | move :: rest ->
-      output_string output (move ^ " !!\n");
+      output_string output (red ^ move ^ " !!" ^ reset ^ "\n");
       print_moves output rest
 
 let print_result output sequence moves =
@@ -36,9 +39,10 @@ let print_pending output automaton state =
 (* Print a completed move now unless it could become a longer combo. *)
 let print_or_delay output automaton state token =
   let sequence = Execution.sequence state in
+  let recognized = moves automaton state in
   let displayed = if sequence = [] then [token] else sequence in
-  if not (is_pending automaton state) then
-    print_result output displayed (moves automaton state)
+  if sequence = [] || (recognized <> [] && not (is_pending automaton state)) then
+    print_result output displayed recognized
 
 (* Handle events until quit. A timeout, invalid input, or broken sequence
    settles any pending move. *)

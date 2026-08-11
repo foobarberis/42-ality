@@ -3,6 +3,18 @@ let run = Test_support.run suite
 let expect = Test_support.expect
 let expect_equal = Test_support.expect_equal
 
+let expect_output expected actual message =
+  let color line =
+    let length = String.length line in
+    if length >= 3 && String.sub line (length - 3) 3 = " !!" then
+      "\027[38;2;230;0;0m" ^ line ^ "\027[0m"
+    else
+      line
+  in
+  Test_support.expect_equal
+    (String.concat "\n" (List.map color (String.split_on_char '\n' expected)))
+    actual message
+
 let build key_map combos =
   Automaton.create key_map combos
 
@@ -34,7 +46,7 @@ let () =
       let output, reads =
         run_events automaton [Runtime.Key "q"; Runtime.Quit]
       in
-      expect_equal
+      expect_output
         "A\nFirst Move !!\nSecond Move !!\n"
         output
         "mapped input or homonymous recognition output was incorrect";
@@ -52,7 +64,7 @@ let () =
           [Runtime.Key "a"; Runtime.Key "b"; Runtime.Key "a";
            Runtime.Quit]
       in
-      expect_equal
+      expect_output
         "A, B, A\nMove ABA !!\n"
         output
         "the longest common-prefix move was not selected");
@@ -67,7 +79,7 @@ let () =
           [Runtime.Key "a"; Runtime.Timeout; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nMove A !!\nB\n" output
+      expect_output "A\nMove A !!\nB\n" output
         "the timeout did not commit and reset the shorter move");
 
   run "preserve an unrecognized partial sequence across timeout" (fun () ->
@@ -80,7 +92,7 @@ let () =
           [Runtime.Key "a"; Runtime.Timeout; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nA, B\nMove AB !!\n" output
+      expect_output "A, B\nMove AB !!\n" output
         "timeout reset an unrecognized partial sequence");
 
   run "commit a pending move before an invalid continuation" (fun () ->
@@ -94,7 +106,7 @@ let () =
         run_events automaton
           [Runtime.Key "a"; Runtime.Key "c"; Runtime.Quit]
       in
-      expect_equal "A\nMove A !!\nC\nMove C !!\n" output
+      expect_output "A\nMove A !!\nC\nMove C !!\n" output
         "an invalid continuation discarded the pending move");
 
   run "commit a pending move on quit" (fun () ->
@@ -105,7 +117,7 @@ let () =
       let output, reads =
         run_events automaton [Runtime.Key "a"; Runtime.Quit]
       in
-      expect_equal "A\nMove A !!\n" output
+      expect_output "A\nMove A !!\n" output
         "quit discarded the pending move";
       expect_equal 2 reads "quit caused an additional event read");
 
@@ -118,7 +130,7 @@ let () =
         run_events automaton
           [Runtime.Key "a"; Runtime.Key "c"; Runtime.Quit]
       in
-      expect_equal "A\nC\nMove C !!\n" output
+      expect_output "C\nMove C !!\n" output
         "failed continuation did not restart from its current token");
 
   run "commit a pending move on a known but unmapped key" (fun () ->
@@ -131,7 +143,7 @@ let () =
           [Runtime.Key "a"; Runtime.Key "f1"; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nMove A !!\nf1\nB\n" output
+      expect_output "A\nMove A !!\nf1\nB\n" output
         "an unmapped key did not commit and reset the pending move");
 
   run "commit a pending move on an unsupported key" (fun () ->
@@ -144,7 +156,7 @@ let () =
           [Runtime.Key "a"; Runtime.Unsupported_key; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nMove A !!\nB\n" output
+      expect_output "A\nMove A !!\nB\n" output
         "an unsupported key did not commit and reset the pending move");
 
   run "preserve a prefix across ignored events" (fun () ->
@@ -157,7 +169,7 @@ let () =
           [Runtime.Key "a"; Runtime.Ignored; Runtime.Key "b";
            Runtime.Quit]
       in
-      expect_equal "A\nA, B\nMove AB !!\n" output
+      expect_output "A, B\nMove AB !!\n" output
         "an ignored event reset the sequence");
 
   run "recognize repeated moves" (fun () ->
@@ -170,9 +182,9 @@ let () =
           [Runtime.Key "a"; Runtime.Key "b";
            Runtime.Key "a"; Runtime.Key "b"; Runtime.Quit]
       in
-      expect_equal
-        ("A\nA, B\nMove AB !!\n"
-         ^ "A\nA, B\nMove AB !!\n")
+      expect_output
+        ("A, B\nMove AB !!\n"
+         ^ "A, B\nMove AB !!\n")
         output
         "a repeated move was not recognized");
 
@@ -209,7 +221,7 @@ let () =
         if !reads = 1 then Runtime.Key "a"
         else
           begin
-            expect_equal "A\nMove A !!\n" (Test_support.read_file path)
+            expect_output "A\nMove A !!\n" (Test_support.read_file path)
               "runtime output was not flushed before the next read";
             Runtime.Quit
           end
